@@ -1,4 +1,4 @@
-import { SearchX } from "lucide-react";
+import { Info, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-meta";
@@ -8,6 +8,7 @@ import { MapPanel } from "@/components/map-panel";
 import { ProviderCard } from "@/components/provider-card";
 import { ProviderFilters } from "@/components/provider-filters";
 import { ButtonLink } from "@/components/ui/button";
+import { findCareService } from "@/lib/care-services";
 import { cn } from "@/lib/cn";
 import { getRepository } from "@/lib/db";
 import { flattenParams, locationFromParams, toQuery } from "@/lib/location";
@@ -28,6 +29,7 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
   const [categories, config, languages] = await Promise.all([repo.listCategories(), repo.getPlatformConfig(), listLanguages(repo)]);
   const activeCategories = categories.filter((c) => c.active);
   const selected = activeCategories.find((c) => c.id === params.category);
+  const careService = findCareService(params.service);
 
   const locationQuery = location ? { lat: location.latitude, lng: location.longitude, label: location.label } : {};
   const discovery = location ? await searchProviders(repo, params) : null;
@@ -39,14 +41,26 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
         <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,28rem)] lg:items-end">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-              {selected ? selected.name : "Care providers"}
+              {careService ? careService.name : selected ? selected.name : "Care providers"}
               {location && <span className="text-ink-muted"> near {location.label}</span>}
             </h1>
             <p className="mt-1 text-sm text-ink-muted">
+              {careService && <>{careService.description} </>}
               Showing providers whose service area covers your location. Distances are approximate.
             </p>
+            {careService?.note && (
+              <p className="mt-2 flex gap-2 text-sm font-medium text-sky-900">
+                <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+                {careService.note}
+              </p>
+            )}
           </div>
-          <DiscoverLocationBar key={location?.label ?? "none"} location={location} category={params.category} />
+          <DiscoverLocationBar
+            key={location?.label ?? "none"}
+            location={location}
+            category={params.category}
+            service={params.service}
+          />
         </div>
 
         <nav aria-label="Categories" className="mt-6 -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -128,10 +142,13 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
                   <p className="mx-auto mt-1 max-w-md text-sm text-ink-muted">
                     {discovery.totalInCategory > 0
                       ? `${discovery.totalInCategory} provider${discovery.totalInCategory === 1 ? " serves" : "s serve"} this area, but your filters hide them.`
-                      : "No providers in this category serve this location yet. Try another category or a nearby area — the demo covers Delhi-NCR, Mumbai and Bengaluru."}
+                      : "No providers for this service or category serve this location yet. Try another one or a nearby area — the demo covers Delhi-NCR, Mumbai and Bengaluru."}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    <ButtonLink variant="secondary" href={`/discover${toQuery({ ...locationQuery, category: params.category })}`}>
+                    <ButtonLink
+                      variant="secondary"
+                      href={`/discover${toQuery({ ...locationQuery, category: params.category, service: params.service })}`}
+                    >
                       Clear filters
                     </ButtonLink>
                     <ButtonLink variant="ghost" href={`/discover${toQuery(locationQuery)}`}>

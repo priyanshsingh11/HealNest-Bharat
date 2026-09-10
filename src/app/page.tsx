@@ -43,8 +43,8 @@ export default async function HomePage() {
               Trusted care, at your doorstep.
             </h1>
             <p className="mt-4 text-lg text-ink-muted">
-              Find verified home nurses, doctors for non-emergency visits, babysitters and elder caregivers near you — with
-              every rupee explained before you book.
+              Home nursing, injections & IV, wound dressing, physiotherapy, elderly care and lab tests at home — from verified
+              professionals near you, with every rupee explained before you book.
             </p>
           </div>
           <div className="mt-8">

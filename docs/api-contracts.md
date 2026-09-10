@@ -26,7 +26,7 @@ Errors share one shape:
 
 `GET /api/providers?lat=28.63&lng=77.21&category=nurse&sort=distance`
 
-Optional filters: `q`, `maxDistanceKm`, `maxPrice` (rupees), `minRating`, `language`, `gender`, `availability` (`today|tomorrow|week`), `verifiedOnly=1`, `sort` (`distance|availability|rating|price`).
+Optional filters: `service` (`home-nursing|injection-iv|wound-dressing|catheter-care|elderly-care|post-operative-care|physiotherapy|home-lab-collection` — only providers with a matching service; `services` and `startingPriceMinor` reflect just those), `q`, `maxDistanceKm`, `maxPrice` (rupees), `minRating`, `language`, `gender`, `availability` (`today|tomorrow|week`), `verifiedOnly=1`, `sort` (`distance|availability|rating|price`).
 Only providers whose service radius covers the location are returned.
 
 ```json

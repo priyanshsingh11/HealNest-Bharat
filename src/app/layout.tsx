@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s · HealNest Bharat",
   },
   description:
-    "Find and request verified home nurses, doctors for non-emergency visits, babysitters and caregivers near you, with transparent itemised pricing.",
+    "Home nursing, injections & IV, wound dressing, catheter care, elderly care, post-operative care, physiotherapy and home lab collection from verified providers near you, with transparent itemised pricing.",
 };
 
 export const viewport: Viewport = {

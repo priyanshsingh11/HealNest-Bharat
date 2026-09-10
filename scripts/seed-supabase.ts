@@ -1,7 +1,7 @@
 /**
  * Seeds a Supabase project with the same demo data the in-memory store uses.
  *
- *   1. Run supabase/migrations/20260910000000_init.sql in the Supabase SQL editor.
+ *   1. Run every file in supabase/migrations (in filename order) in the Supabase SQL editor.
  *   2. Put SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local.
  *   3. npm run db:seed
  *

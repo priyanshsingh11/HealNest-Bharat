@@ -4,11 +4,12 @@ import { LoaderCircle, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useId, useTransition, type ReactNode } from "react";
 import { Input, Label, Select } from "@/components/ui/field";
+import { CARE_SERVICES } from "@/lib/care-services";
 
 type Current = Record<string, string | undefined>;
 
-/** Location/category params survive "clear filters". */
-const KEEP_ON_RESET = ["lat", "lng", "label", "category"];
+/** Location/category/service params survive "clear filters". */
+const KEEP_ON_RESET = ["lat", "lng", "label", "category", "service"];
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
   return (
@@ -48,6 +49,17 @@ export function ProviderFilters({ current, languages }: { current: Current; lang
 
   const body = (
     <div className="space-y-4">
+      <Field label="Service needed" htmlFor={f("service")}>
+        <Select id={f("service")} value={current.service ?? ""} onChange={(e) => update("service", e.target.value || null)}>
+          <option value="">Any service</option>
+          {CARE_SERVICES.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
       <form
         role="search"
         onSubmit={(e) => {

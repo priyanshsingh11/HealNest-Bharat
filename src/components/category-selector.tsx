@@ -17,7 +17,7 @@ export function CategorySelector({
   selected?: CategoryId | null;
 }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {categories.map((category) => (
         <li key={category.id}>
           <button

@@ -8,6 +8,7 @@ import { demoToolsEnabled } from "@/lib/demo";
 
 const NAV = [
   { href: "/discover", label: "Find care" },
+  { href: "/services", label: "Services" },
   { href: "/bookings", label: "My bookings" },
   { href: "/dashboard/provider", label: "Provider dashboard" },
   { href: "/dashboard/admin", label: "Admin" },
