@@ -24,3 +24,13 @@ export async function POST(request: Request) {
     return response;
   });
 }
+
+/** Log out: clears the mock session cookies. Always allowed, even when demo tools are off. */
+export async function DELETE(request: Request) {
+  return handle(request, LIMITS.write, async () => {
+    const response = NextResponse.json({ ok: true });
+    response.cookies.delete(ROLE_COOKIE);
+    response.cookies.delete(PROVIDER_COOKIE);
+    return response;
+  });
+}

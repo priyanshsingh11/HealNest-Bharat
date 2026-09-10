@@ -10,6 +10,12 @@ export async function getSession(): Promise<Session> {
   return buildSession(store.get(ROLE_COOKIE)?.value, store.get(PROVIDER_COOKIE)?.value);
 }
 
+/** True once someone has logged in. Until then the app browses as the demo customer. */
+export async function isSignedIn(): Promise<boolean> {
+  const store = await cookies();
+  return Boolean(store.get(ROLE_COOKIE)?.value);
+}
+
 export function requireRole(session: Session, ...roles: Role[]): void {
   if (!roles.includes(session.role)) {
     throw forbidden(`This action requires the ${roles.join(" or ")} role. Switch role from the header.`);

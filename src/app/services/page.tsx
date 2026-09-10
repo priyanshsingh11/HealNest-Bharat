@@ -35,7 +35,7 @@ export default async function ServicesPage() {
     <>
       <EmergencyBanner emergencyNumber={config.emergencyNumber} />
 
-      <section className="bg-gradient-to-b from-brand-50 to-canvas">
+      <section className="hero-surface">
         <div className="mx-auto max-w-7xl px-4 pt-10 pb-8 sm:px-6">
           <p className="text-sm font-bold uppercase tracking-wider text-brand-700">Our services</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Care at home, done properly.</h1>

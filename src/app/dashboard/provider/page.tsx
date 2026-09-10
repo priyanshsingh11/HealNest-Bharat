@@ -62,7 +62,12 @@ export default async function ProviderDashboardPage() {
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
         <h1 className="text-2xl font-extrabold">Provider dashboard</h1>
         <p className="mt-2 text-ink-muted">
-          This is a demo with mock login. Choose a provider profile to see their incoming requests, availability and payouts.
+          This is a demo with mock login. Choose a provider profile to see their incoming requests, availability and payouts,
+          or{" "}
+          <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
+            log in as a caretaker
+          </Link>
+          .
         </p>
         <Card className="mt-6 p-6">
           <SwitchRole role="provider" providers={pickerOptions} label="Open provider dashboard" />

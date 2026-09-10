@@ -18,10 +18,11 @@ export default defineConfig({
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    // Force the in-memory data source so the smoke test never touches a real database.
-    command: `DATA_SOURCE=memory npx next dev -p ${PORT}`,
+    // Production build + in-memory data source, so the smoke test never touches a real database
+    // and doesn't clash with a `next dev` server already running in this folder.
+    command: `npm run build && DATA_SOURCE=memory npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 240_000,
   },
 });

@@ -51,6 +51,16 @@ export const DEFAULT_CATEGORIES: Category[] = [
   },
 ];
 
+/** How care professionals describe themselves, e.g. when logging in as a caretaker. */
+export const PROFESSION_LABELS: Record<CategoryId, string> = {
+  nurse: "Nurse",
+  doctor: "Doctor",
+  physiotherapist: "Physiotherapist",
+  phlebotomist: "Lab technician",
+  babysitter: "Nanny / Babysitter",
+  caregiver: "Caregiver",
+};
+
 export const KIND_LABELS: Record<CategoryKind, string> = {
   medical: "Medical service",
   childcare: "Childcare — non-medical",

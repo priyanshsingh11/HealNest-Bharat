@@ -17,7 +17,7 @@ test("customer books a home nurse from the homepage", async ({ page, isMobile })
   const errors = collectConsoleErrors(page);
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Trusted care, at your doorstep/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Trusted Care at Your Doorstep/i })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Emergency notice" })).toBeVisible();
 
   // 1. Location
