@@ -249,16 +249,38 @@ only. Once uploads go to Storage, store the object path there.
 7. **Add caretakers.** Create them from *Log in → caretaker* (demo sign-up), then submit and approve their
    verification from the provider and admin dashboards. Only verified caretakers can be booked.
 
-## App changes still needed for real login
+## Email one-time codes
 
-The database side is ready. The app still logs in through the demo cookie session (`src/lib/auth.ts`, `/api/session`).
-To switch:
+With `DATA_SOURCE=supabase`, log in and sign-up use a 6-digit code emailed by Supabase Auth. The server makes
+the Supabase calls (`src/lib/supabase-auth.ts`), so the browser needs no Supabase key.
 
-1. Add `@supabase/ssr`. Refresh the Auth session in `middleware.ts`, and add an `/auth/callback` route.
-2. Change `getSession()` to read the Supabase user and load `app_users` by `auth_user_id` (plus
-   `provider_profiles.id` for caretakers). Keep the existing `Session` shape so every `requireRole` check keeps working.
-3. Replace the demo login form with phone OTP / email sign-in. Pass `options.data.account_type` = `customer` or `caretaker`
-   and `full_name` on sign-up.
-4. Set `DEMO_TOOLS=false` and remove the demo `POST /api/session`.
-5. For production, move booking creation (address + booking + quote + events) into one Postgres function called with
+```
+POST /api/auth/email-code          { intent: "login", email }  → needs an existing account
+                                   { intent: "signup", account } → needs an unused email; details checked first
+POST /api/auth/email-code/verify   { email, token, account? }  → verifyOtp, then log in (creating the account for a sign-up)
+```
+
+- Supabase only proves who owns the email. After the code checks out, the app logs into the `app_users` row with that
+  email and sets `auth_user_id` on it. For a sign-up, it first creates the account the same way the demo sign-up does.
+- Requesting a code creates the `auth.users` row, so the sign-up trigger adds a placeholder `app_users` row
+  (`user_<uuid-hex>`). The app ignores placeholders and deletes the one for this email once the code is verified.
+  Placeholders from codes that were never entered stay hidden. Admins promoted with SQL keep that id and still count.
+- Accounts made by the demo sign-up get linked the first time someone logs in with their email.
+
+**Supabase settings** (*Authentication*):
+
+1. *Sign In / Providers → Email*: enabled, with **Confirm email** on.
+2. *Emails → Templates*: Supabase sends a link by default. In both **Magic Link** and **Confirm signup**, replace
+   the link with the code, e.g. `<h2>Your HealNest code</h2><p>{{ .Token }}</p>`. New accounts get *Confirm signup*.
+   Returning accounts get *Magic Link*.
+3. *Emails → SMTP Settings*: add your own SMTP (Resend, SES, Brevo…). The built-in mailer only sends to your
+   project's team members, and only a few emails an hour.
+4. Optional: *Sign In / Providers → Email → Email OTP expiration* and *Email OTP length* (the app accepts 6–10 digits).
+
+## Still to do for production login
+
+1. Sign the session cookies (or switch to `@supabase/ssr` sessions). Today `hn_role` / `hn_user` are plain cookies,
+   so the email code only protects you once cookies can't be hand-edited.
+2. Set `DEMO_TOOLS=false`. This hides the demo account pickers and blocks the demo `POST /api/session` and `POST /api/accounts`.
+3. For production, move booking creation (address + booking + quote + events) into one Postgres function called with
    `rpc()`, so it runs in a single transaction.

@@ -207,3 +207,16 @@ export const accountCreateSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type AccountCreateInput = z.output<typeof accountCreateSchema>;
+
+/** Email me a code: to log into an existing account, or to confirm the email before a sign-up is created. */
+export const emailCodeRequestSchema = z.discriminatedUnion("intent", [
+  z.object({ intent: z.literal("login"), email: accountFields.email }),
+  z.object({ intent: z.literal("signup"), account: accountCreateSchema }),
+]);
+
+/** The code from the email. A sign-up sends its details again; they're checked afresh before the account is created. */
+export const emailCodeVerifySchema = z.object({
+  email: accountFields.email,
+  token: z.string().trim().regex(/^\d{6,10}$/, "Enter the code from the email"),
+  account: accountCreateSchema.optional(),
+});

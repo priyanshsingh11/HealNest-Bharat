@@ -5,6 +5,8 @@ import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
 import { flattenParams } from "@/lib/location";
 import { DEMO_USER_ID } from "@/lib/seed";
+import { isAuthPlaceholder } from "@/lib/services/accounts";
+import { emailCodesAvailable } from "@/lib/supabase-auth";
 import type { CategoryId } from "@/types";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -29,8 +31,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
     repo.listUsers({ role: "user" }),
   ]);
 
-  // The demo customer first, then created accounts by name.
+  // The demo customer first, then created accounts by name. Unfinished email sign-ups are not accounts yet.
   const customers: CustomerOption[] = customerUsers
+    .filter((user) => !isAuthPlaceholder(user))
     .sort((a, b) => Number(b.id === DEMO_USER_ID) - Number(a.id === DEMO_USER_ID) || a.name.localeCompare(b.name))
     .map(({ id, name, email }) => ({ id, name, email }));
 
@@ -57,7 +60,8 @@ export default async function LoginPage({ searchParams }: PageProps) {
           professions={PROFESSION_ORDER.filter((id) => activeCategories.has(id))}
           initialType={params.as === "caretaker" ? "caretaker" : "customer"}
           next={safeNext(params.next)}
-          enabled={demoToolsEnabled()}
+          demoEnabled={demoToolsEnabled()}
+          emailCodes={emailCodesAvailable()}
         />
       </div>
     </div>

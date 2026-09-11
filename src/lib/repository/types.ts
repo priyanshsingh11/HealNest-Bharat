@@ -44,6 +44,8 @@ export type NewAuditLogEntry = Omit<AuditLogEntry, "id" | "at">;
 
 export type UserFilter = {
   role?: Role;
+  /** Exact match on the lower-cased email. */
+  email?: string;
 };
 
 export type SlotFilter = {
@@ -72,6 +74,10 @@ export interface CareRepository {
   listUsers(filter?: UserFilter): Promise<User[]>;
   /** Throws a 409 if the id is taken. */
   createUser(user: User): Promise<User>;
+  /** Links the app user to a Supabase Auth account, moving the link off any other app user. */
+  linkAuthUser(userId: string, authUserId: string): Promise<void>;
+  /** Returns false (and keeps the row) if something still references the user. */
+  deleteUser(id: string): Promise<boolean>;
 
   listCategories(): Promise<Category[]>;
   updateCategory(id: CategoryId, patch: CategoryPatch): Promise<Category>;

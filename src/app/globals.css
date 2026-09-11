@@ -134,37 +134,6 @@
     background-size: 14px 14px;
     mask-image: radial-gradient(circle at 50% 70%, black 25%, transparent 65%);
   }
-
-  /* Endless sideways strip. The track holds the list twice, so sliding it by half loops seamlessly. */
-  .marquee {
-    overflow: hidden;
-    mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
-  }
-  .marquee-track {
-    display: flex;
-    width: max-content;
-    animation: marquee 40s linear infinite;
-  }
-  .marquee:hover .marquee-track,
-  .marquee:focus-within .marquee-track {
-    animation-play-state: paused;
-  }
-  /* Without motion, the strip stands still; page.tsx wraps and centres one copy with motion-reduce: classes. */
-  @media (prefers-reduced-motion: reduce) {
-    .marquee {
-      mask-image: none;
-    }
-    .marquee-track {
-      width: auto;
-      animation: none !important;
-    }
-  }
-}
-
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
-  }
 }
 
 /* Leaflet sits under sticky headers. */

@@ -35,6 +35,8 @@ export class MemoryRepository implements CareRepository {
   readonly kind = "memory" as const;
   private readonly state: SeedData & { auditLogs: AuditLogEntry[] };
   private auditSeq = 0;
+  /** app user id → Supabase Auth user id. */
+  private readonly authLinks = new Map<string, string>();
 
   constructor(seed: SeedData) {
     this.state = { ...clone(seed), auditLogs: [] };
@@ -46,13 +48,31 @@ export class MemoryRepository implements CareRepository {
   }
 
   async listUsers(filter: UserFilter = {}) {
-    return clone(this.state.users.filter((u) => !filter.role || u.role === filter.role));
+    return clone(
+      this.state.users.filter(
+        (u) => (!filter.role || u.role === filter.role) && (!filter.email || u.email.toLowerCase() === filter.email),
+      ),
+    );
   }
 
   async createUser(user: User) {
     if (this.state.users.some((u) => u.id === user.id)) throw conflict("That account already exists.");
     this.state.users.push(clone(user));
     return clone(user);
+  }
+
+  async linkAuthUser(userId: string, authUserId: string) {
+    if (!this.state.users.some((u) => u.id === userId)) throw notFound("Account");
+    for (const [id, linked] of this.authLinks) if (linked === authUserId) this.authLinks.delete(id);
+    this.authLinks.set(userId, authUserId);
+  }
+
+  async deleteUser(id: string) {
+    const referenced = this.state.providers.some((p) => p.userId === id) || this.state.bookings.some((b) => b.userId === id);
+    if (referenced) return false;
+    this.state.users = this.state.users.filter((u) => u.id !== id);
+    this.authLinks.delete(id);
+    return true;
   }
 
   async listCategories() {

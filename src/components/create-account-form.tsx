@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { CodeEntry, type CodeRequest } from "@/components/email-code";
 import type { AccountType } from "@/components/login-form";
 import { Button } from "@/components/ui/button";
 import { FieldError, Hint, Input, Label, Select } from "@/components/ui/field";
@@ -18,6 +19,8 @@ type Props = {
   /** Where to send a customer after sign-up (validated server-side). */
   next: string | null;
   enabled: boolean;
+  /** Confirm the email with a one-time code before creating the account (Supabase Auth). Otherwise demo sign-up. */
+  emailCodes: boolean;
 };
 
 function Field({
@@ -45,14 +48,16 @@ function Field({
   );
 }
 
-/** Demo sign-up: creates a customer or caretaker account and logs straight into it. */
-export function CreateAccountForm({ type, profession, next, enabled }: Props) {
+/** Sign-up for a customer or caretaker. With email codes the account is created once the code is entered; the demo creates it straight away. */
+export function CreateAccountForm({ type, profession, next, enabled, emailCodes }: Props) {
   const id = useId();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<Record<string, string>>({});
+  /** Set once the code is sent; the form stays mounted (hidden) so "Edit my details" keeps what was typed. */
+  const [codeRequest, setCodeRequest] = useState<CodeRequest | null>(null);
   const busy = !enabled || submitting || pending;
   const caretaker = type === "caretaker";
   const professionLabel = PROFESSION_LABELS[profession].toLowerCase();
@@ -89,6 +94,13 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
     setIssues({});
     setSubmitting(true);
     try {
+      if (emailCodes) {
+        const request = { intent: "signup", account: body } as const;
+        await apiRequest("/api/auth/email-code", "POST", request);
+        setCodeRequest(request);
+        setSubmitting(false);
+        return;
+      }
       await apiRequest("/api/accounts", "POST", body);
       startTransition(() => {
         router.push(caretaker ? "/dashboard/provider" : (next ?? "/"));
@@ -97,8 +109,9 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
     } catch (e) {
       if (e instanceof ApiRequestError) {
         // Keep the first message per field; "languages.0" is reported against the languages field.
+        // The email-code request nests the details under "account".
         const byField: Record<string, string> = {};
-        for (const issue of e.issues) byField[issue.path.split(".")[0]] ??= issue.message;
+        for (const issue of e.issues) byField[issue.path.replace(/^account\./, "").split(".")[0]] ??= issue.message;
         setIssues(byField);
       }
       setError(e instanceof Error ? e.message : "Could not create the account");
@@ -107,7 +120,9 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="mt-4 space-y-4" data-testid={`create-${type}-form`}>
+    <>
+    {codeRequest && <CodeEntry request={codeRequest} next={next} onBack={() => setCodeRequest(null)} />}
+    <form onSubmit={submit} noValidate hidden={Boolean(codeRequest)} className="mt-4 space-y-4" data-testid={`create-${type}-form`}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field htmlFor={`${id}-name`} label="Full name" error={issues.name} className="sm:col-span-2">
           <Input
@@ -172,11 +187,13 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
       <Button type="submit" size="lg" className="w-full" disabled={busy} data-testid="create-account-submit">
         {caretaker ? `Create ${professionLabel} account` : "Create customer account"} <ArrowRight aria-hidden className="size-4" />
       </Button>
+      {emailCodes && <p className="text-center text-xs text-ink-muted">We&apos;ll email you a code to confirm the address is yours.</p>}
       {error && (
         <p role="alert" className="text-sm font-medium text-rose-700">
           {error}
         </p>
       )}
     </form>
+    </>
   );
 }

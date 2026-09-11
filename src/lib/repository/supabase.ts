@@ -95,6 +95,7 @@ export class SupabaseRepository implements CareRepository {
   async listUsers(filter: UserFilter = {}) {
     let query = this.db.from("app_users").select("*").order("created_at").order("id");
     if (filter.role) query = query.eq("role", filter.role);
+    if (filter.email) query = query.eq("email", filter.email);
     return (check(await query, "listUsers") as UserRow[]).map(toUser);
   }
 
@@ -102,6 +103,27 @@ export class SupabaseRepository implements CareRepository {
     const result = await this.db.from("app_users").insert(fromUser(user)).select("*").single();
     if (result.error?.code === "23505") throw conflict("That account already exists.");
     return toUser(check(result, "createUser") as UserRow);
+  }
+
+  async linkAuthUser(userId: string, authUserId: string) {
+    // auth_user_id is unique: free it from any other row first (e.g. the one the sign-up trigger made).
+    check(
+      await this.db.from("app_users").update({ auth_user_id: null }).eq("auth_user_id", authUserId).neq("id", userId),
+      "linkAuthUser",
+    );
+    const row = check(
+      await this.db.from("app_users").update({ auth_user_id: authUserId }).eq("id", userId).select("id").maybeSingle(),
+      "linkAuthUser",
+    );
+    if (!row) throw notFound("Account");
+  }
+
+  async deleteUser(id: string) {
+    const result = await this.db.from("app_users").delete().eq("id", id);
+    // Foreign-key violation: bookings, addresses or a profile still point at this user.
+    if (result.error?.code === "23503") return false;
+    check(result, "deleteUser");
+    return true;
   }
 
   async listCategories() {

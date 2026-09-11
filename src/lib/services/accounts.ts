@@ -5,15 +5,24 @@ import { CANCELLATION_BY_CATEGORY, starterServicesFor } from "@/lib/platform-def
 import type { CareRepository } from "@/lib/repository/types";
 import { buildSession, type Session } from "@/lib/session";
 import type { AccountCreateInput } from "@/lib/validations";
-import type { ProviderProfile } from "@/types";
+import type { ProviderProfile, User } from "@/types";
 
-// Demo sign-up: creates a customer, or a caretaker with an unverified profile and starter services.
-// Replace with Supabase Auth sign-up later (docs/database-design.md); the created rows keep the same shape.
+// Sign-up: creates a customer, or a caretaker with an unverified profile and starter services.
+// Used directly by the demo sign-up, and after the email code is verified by the Supabase Auth sign-up.
 
 const DEFAULT_RADIUS_KM = 10;
 const DEFAULT_TRAVEL_FEE_MINOR = 5000;
 /** Retries when two sign-ups race for the same provider number. */
 const ID_ATTEMPTS = 3;
+
+/** Ids the database's sign-up trigger (on_auth_user_created) gives new Auth accounts: user_ + the Auth id without dashes. */
+const AUTH_PLACEHOLDER_ID = /^user_[0-9a-f]{32}$/;
+
+/**
+ * A row the sign-up trigger made for an Auth account the app hasn't finished setting up (e.g. a code that was
+ * never entered). It is not a real account. Admins promoted with SQL keep the trigger's id, so they don't count.
+ */
+export const isAuthPlaceholder = (user: User) => AUTH_PLACEHOLDER_ID.test(user.id) && user.role !== "admin";
 
 const newCustomerId = () => `user_c${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 
@@ -25,12 +34,22 @@ async function nextProviderId(repo: CareRepository): Promise<string> {
   return `prov_${String(Math.max(0, ...numbers) + 1).padStart(2, "0")}`;
 }
 
-/** Creates the account and returns the session to log into it. */
-export async function createDemoAccount(repo: CareRepository, input: AccountCreateInput, now = new Date()): Promise<Session> {
-  const users = await repo.listUsers();
-  if (users.some((user) => user.email.toLowerCase() === input.email)) {
+/** Throws the error sign-up would fail with, so the email code is only sent for an account that can be created. */
+export async function checkNewAccount(repo: CareRepository, input: AccountCreateInput): Promise<void> {
+  const users = await repo.listUsers({ email: input.email });
+  if (users.some((user) => !isAuthPlaceholder(user))) {
     throw conflict("An account with this email already exists. Log in to it instead.");
   }
+  if (input.type === "customer") return;
+
+  if (!findLocality(input.localityId)) throw unprocessable("Choose where you are based from the list.");
+  const category = (await repo.listCategories()).find((c) => c.id === input.category);
+  if (!category?.active) throw unprocessable("This profession is not accepting new caretakers right now.");
+}
+
+/** Creates the account and returns the session to log into it. */
+export async function createDemoAccount(repo: CareRepository, input: AccountCreateInput, now = new Date()): Promise<Session> {
+  await checkNewAccount(repo, input);
   const createdAt = now.toISOString();
 
   if (input.type === "customer") {
@@ -45,11 +64,7 @@ export async function createDemoAccount(repo: CareRepository, input: AccountCrea
     return buildSession("user", undefined, user.id);
   }
 
-  const locality = findLocality(input.localityId);
-  if (!locality) throw unprocessable("Choose where you are based from the list.");
-  const category = (await repo.listCategories()).find((c) => c.id === input.category);
-  if (!category?.active) throw unprocessable("This profession is not accepting new caretakers right now.");
-
+  const locality = findLocality(input.localityId)!;
   for (let attempt = 0; attempt < ID_ATTEMPTS; attempt++) {
     const providerId = await nextProviderId(repo);
     const userId = `user_${providerId}`;

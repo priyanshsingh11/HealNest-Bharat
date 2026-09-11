@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CategoryIcon } from "@/components/category-meta";
 import { EmergencyBanner } from "@/components/emergency-banner";
 import { HomeSearch } from "@/components/home-search";
+import { Marquee } from "@/components/marquee";
 import { ButtonLink } from "@/components/ui/button";
 import { isSignedIn } from "@/lib/auth";
 import { CARE_SERVICES } from "@/lib/care-services";
@@ -243,36 +244,22 @@ export default async function HomePage() {
       </section>
 
       <section aria-label="Care professionals on HealNest Bharat" className="border-b border-line bg-white pt-16 pb-10">
-        <div className="marquee mx-auto max-w-6xl">
-          <div className="marquee-track">
-            {/* Four copies, so half the track is always wider than the strip and the loop never shows a gap on wide
-                screens. Only the first copy is real; the rest are hidden from screen readers and tabbing. */}
-            {[0, 1, 2, 3].map((copy) => (
-              <ul
-                key={copy}
-                aria-hidden={copy > 0 || undefined}
-                className={cn(
-                  "flex shrink-0 gap-4 pr-4 sm:gap-5 sm:pr-5",
-                  "motion-reduce:w-full motion-reduce:shrink motion-reduce:flex-wrap motion-reduce:justify-center motion-reduce:px-4",
-                  copy > 0 && "motion-reduce:hidden",
-                )}
-              >
-                {active.map((category) => (
-                  <li key={category.id} className="shrink-0">
-                    <Link
-                      href={`/discover${toQuery({ category: category.id })}`}
-                      tabIndex={copy > 0 ? -1 : undefined}
-                      className="flex items-center gap-2.5 rounded-full bg-brand-50/60 px-5 py-2.5 text-base font-bold whitespace-nowrap text-ink-muted ring-1 ring-line transition-colors hover:text-brand-700 hover:ring-brand-300 sm:px-6 sm:py-3 sm:text-lg"
-                    >
-                      <CategoryIcon category={category.id} className="size-6 text-brand-600" />
-                      {PROFESSION_PLURALS[category.id]}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ))}
-          </div>
-        </div>
+        <Marquee>
+          {(hidden) =>
+            active.map((category) => (
+              <li key={category.id} className="shrink-0 px-4 sm:px-6">
+                <Link
+                  href={`/discover${toQuery({ category: category.id })}`}
+                  tabIndex={hidden ? -1 : undefined}
+                  className="flex items-center gap-2.5 py-2 text-lg font-bold whitespace-nowrap text-ink-muted transition-colors hover:text-brand-700 sm:text-xl"
+                >
+                  <CategoryIcon category={category.id} className="size-6 text-brand-600" />
+                  {PROFESSION_PLURALS[category.id]}
+                </Link>
+              </li>
+            ))
+          }
+        </Marquee>
       </section>
 
       <section id="find-care" aria-labelledby="find-care-heading" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-14 sm:px-6 sm:py-20">
