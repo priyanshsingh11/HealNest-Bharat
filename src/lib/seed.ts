@@ -13,11 +13,10 @@ import type {
   VerificationApplication,
 } from "@/types";
 
-// What a fresh data store starts with: categories, pricing rules, platform settings and the demo customer and admin
-// accounts the mock login uses. No providers, bookings or reviews — those come from sign-ups.
+// What a fresh data store starts with: categories, pricing rules, platform settings and the demo admin account the
+// mock login uses. No customers, providers, bookings or reviews — those come from sign-ups.
 // Used by the in-memory repository and by `npm run db:seed` for Supabase.
 
-export const DEMO_USER_ID = "user_demo";
 export const DEMO_ADMIN_ID = "admin_demo";
 
 export type SeedData = {
@@ -38,7 +37,6 @@ export function createSeedData(now: Date = new Date()): SeedData {
   return {
     categories: DEFAULT_CATEGORIES.map((category) => ({ ...category })),
     users: [
-      { id: DEMO_USER_ID, name: "Aarav Sharma", email: "aarav.demo@example.com", phone: "+91 90000 00001", role: "user", createdAt },
       { id: DEMO_ADMIN_ID, name: "HealNest Admin", email: "admin.demo@example.com", phone: "+91 90000 00002", role: "admin", createdAt },
     ],
     providers: [],

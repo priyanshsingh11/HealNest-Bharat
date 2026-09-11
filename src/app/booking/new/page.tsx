@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth";
 import { categoryName, isCategoryActive } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { flattenParams, locationFromParams, toQuery } from "@/lib/location";
+import { isGuest } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Request a home visit" };
 
@@ -49,6 +50,15 @@ export default async function NewBookingPage({ searchParams }: PageProps) {
           <VerificationBadge status={provider.verificationStatus} />
           <KindBadge category={provider.category} />
         </div>
+
+        {isGuest(session) && (
+          <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <Link href={`/login${toQuery({ next: `/booking/new${toQuery(raw)}` })}`} className="font-semibold underline underline-offset-2">
+              Log in or create an account
+            </Link>{" "}
+            to send a booking request.
+          </p>
+        )}
 
         {session.role !== "user" && (
           <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

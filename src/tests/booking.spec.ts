@@ -74,6 +74,13 @@ function collectConsoleErrors(page: Page) {
 test("customer books a home nurse from the homepage", async ({ page, isMobile }) => {
   const errors = collectConsoleErrors(page);
 
+  // Booking needs a customer account. The demo sign-up logs this browser into a fresh one.
+  await json(
+    await page.request.post("/api/accounts", {
+      data: { type: "customer", name: "Test Customer", email: `customer-${Date.now()}@example.test`, phone: "9876543210" },
+    }),
+  );
+
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Trusted Care at Your Doorstep/i })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Emergency notice" })).toBeVisible();
@@ -149,7 +156,7 @@ test("provider and admin dashboard demo routes load", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Provider verification" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pricing rules & platform margin" })).toBeVisible();
 
-  // Reset to the customer role so other tests start from the default session.
+  // Log out so other tests start as a guest.
   await page.context().clearCookies();
 });
 

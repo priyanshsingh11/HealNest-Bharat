@@ -2,17 +2,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { appointmentsCalendar } from "@/lib/ics";
 import { MemoryRepository } from "@/lib/repository/memory";
 import { summarizeReviews } from "@/lib/reviews";
-import { createSeedData, DEMO_ADMIN_ID, DEMO_USER_ID } from "@/lib/seed";
+import { createSeedData, DEMO_ADMIN_ID } from "@/lib/seed";
 import { addSlots } from "@/lib/services/admin";
 import { submitReview } from "@/lib/services/reviews";
 import { reviewVerification, submitVerification } from "@/lib/services/verification";
 import { buildSession } from "@/lib/session";
 import { verificationSchemaFor } from "@/lib/verification";
-import { createTestData } from "./fixtures";
+import { createTestData, TEST_CUSTOMER_ID } from "./fixtures";
 
 const NOW = new Date("2026-09-10T06:00:00Z"); // 11:30 IST
 const HOUR = 3600 * 1000;
-const customer = buildSession("user", undefined);
+const customer = buildSession("user", undefined, TEST_CUSTOMER_ID);
 const admin = buildSession("admin", undefined);
 const nurse = buildSession("provider", "prov_01");
 const otherNurse = buildSession("provider", "prov_02");
@@ -25,9 +25,9 @@ beforeEach(() => {
 });
 
 describe("seed data", () => {
-  it("holds only settings and the demo accounts: no mock providers, bookings or reviews", () => {
+  it("holds only settings and the demo admin: no mock customers, providers, bookings or reviews", () => {
     const seed = createSeedData(NOW);
-    expect(seed.users.map((u) => u.id)).toEqual([DEMO_USER_ID, DEMO_ADMIN_ID]);
+    expect(seed.users.map((u) => u.id)).toEqual([DEMO_ADMIN_ID]);
     for (const rows of [seed.providers, seed.services, seed.slots, seed.reviews, seed.bookings, seed.verificationApplications]) {
       expect(rows).toEqual([]);
     }
@@ -118,7 +118,7 @@ describe("reviews", () => {
   it("lets the customer review a completed visit once and updates the provider's rating", async () => {
     const before = (await repo.getProvider("prov_01"))!;
     const review = await submitReview(repo, customer, "bk_demo_3", input, NOW);
-    expect(review).toMatchObject({ bookingId: "bk_demo_3", authorName: "Aarav S.", rating: 5, wouldRecommend: true });
+    expect(review).toMatchObject({ bookingId: "bk_demo_3", authorName: "Kavya I.", rating: 5, wouldRecommend: true });
 
     const after = (await repo.getProvider("prov_01"))!;
     expect(after.reviewCount).toBe(before.reviewCount + 1);

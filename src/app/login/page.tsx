@@ -4,7 +4,6 @@ import { LoginForm, type CaretakerOption, type CustomerOption } from "@/componen
 import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
 import { flattenParams } from "@/lib/location";
-import { DEMO_USER_ID } from "@/lib/seed";
 import { isAuthPlaceholder } from "@/lib/services/accounts";
 import { emailCodesAvailable } from "@/lib/supabase-auth";
 import type { CategoryId } from "@/types";
@@ -31,10 +30,10 @@ export default async function LoginPage({ searchParams }: PageProps) {
     repo.listUsers({ role: "user" }),
   ]);
 
-  // The demo customer first, then created accounts by name. Unfinished email sign-ups are not accounts yet.
+  // Created accounts by name. Unfinished email sign-ups are not accounts yet.
   const customers: CustomerOption[] = customerUsers
     .filter((user) => !isAuthPlaceholder(user))
-    .sort((a, b) => Number(b.id === DEMO_USER_ID) - Number(a.id === DEMO_USER_ID) || a.name.localeCompare(b.name))
+    .sort((a, b) => a.name.localeCompare(b.name))
     .map(({ id, name, email }) => ({ id, name, email }));
 
   const activeCategories = new Set(categories.filter((c) => c.active).map((c) => c.id));

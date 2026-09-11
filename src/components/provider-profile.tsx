@@ -70,10 +70,13 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
                     ({provider.reviewCount} reviews)
                   </a>
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <MapPin aria-hidden className="size-4 text-ink-muted" />
-                  Based in {provider.baseLocation.locality}, {provider.baseLocation.city}
-                  {distanceKm !== null && <span className="text-ink-muted">· {formatDistance(distanceKm)} from you</span>}
+                <li className="flex items-start gap-1.5">
+                  <MapPin aria-hidden className="mt-0.5 size-4 shrink-0 text-ink-muted" />
+                  {/* One text run, so the distance wraps with the address instead of becoming its own column. */}
+                  <span>
+                    Based in {provider.baseLocation.locality}, {provider.baseLocation.city}
+                    {distanceKm !== null && <span className="text-ink-muted"> · {formatDistance(distanceKm)} from you</span>}
+                  </span>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <Languages aria-hidden className="size-4 text-ink-muted" />

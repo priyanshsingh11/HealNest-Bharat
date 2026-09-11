@@ -23,8 +23,10 @@ export function ProviderCard({ result, href }: { result: ProviderSearchResult; h
             <Link href={href} className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none">
               {provider.name}
             </Link>
+            {/* Inside the heading so the tick stays beside the last word when a long name wraps. */}
+            {provider.verificationStatus === "verified" && <VerifiedTick className="ml-1.5 align-[-0.2em]" />}
           </h3>
-          {provider.verificationStatus === "verified" ? <VerifiedTick /> : <VerificationBadge status={provider.verificationStatus} />}
+          {provider.verificationStatus !== "verified" && <VerificationBadge status={provider.verificationStatus} />}
         </div>
         <p className="mt-0.5 text-sm font-medium text-ink-muted">
           {categoryName(provider.category)} · {provider.yearsExperience} yrs experience

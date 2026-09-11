@@ -1,5 +1,5 @@
 import { canActorTransition, STATUS_LABELS } from "@/lib/booking-status";
-import { conflict, forbidden, notFound, unprocessable } from "@/lib/errors";
+import { AppError, conflict, forbidden, notFound, unprocessable } from "@/lib/errors";
 import { roundedDistanceKm } from "@/lib/geo";
 import type { CareRepository } from "@/lib/repository/types";
 import { buildQuote } from "@/lib/services/quotes";
@@ -23,6 +23,10 @@ export async function createBooking(
   now: Date = new Date(),
 ): Promise<Booking> {
   if (session.role !== "user") throw forbidden("Switch to the Customer role to request a visit.");
+  // Guests (and logins whose account no longer exists) can browse, but a booking needs a customer account.
+  if ((await repo.getUser(session.userId))?.role !== "user") {
+    throw new AppError("Log in or create an account to request a visit.", 401, "UNAUTHORIZED");
+  }
 
   const [provider, service, slot, categories] = await Promise.all([
     repo.getProvider(request.providerId),

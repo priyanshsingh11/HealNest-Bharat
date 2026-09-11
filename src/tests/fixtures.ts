@@ -2,7 +2,7 @@ import { HAPPY_PATH } from "@/lib/booking-status";
 import { LOCALITIES } from "@/lib/localities";
 import { CANCELLATION_BY_CATEGORY, DEFAULT_PLATFORM_CONFIG, DEFAULT_PRICING_RULES, starterServicesFor } from "@/lib/platform-defaults";
 import { calculateQuote } from "@/lib/pricing";
-import { createSeedData, DEMO_USER_ID, type SeedData } from "@/lib/seed";
+import { createSeedData, type SeedData } from "@/lib/seed";
 import type {
   AvailabilitySlot,
   Booking,
@@ -57,6 +57,9 @@ const SLOT_HOURS: Record<CategoryId, number[]> = {
 
 const REVIEWER_NAMES = ["Neha S.", "Rahul K.", "Aditi P.", "Imran Q."];
 
+/** The customer who made the fixture bookings and reviews. */
+export const TEST_CUSTOMER_ID = "user_ctest01";
+
 const round5 = (n: number) => Math.round(n * 1e5) / 1e5;
 const istDate = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(date);
 const istInstant = (ymd: string, hour: number) => new Date(`${ymd}T${String(hour).padStart(2, "0")}:00:00+05:30`);
@@ -77,7 +80,10 @@ function jitter(index: number): { dLat: number; dLng: number } {
 export function createTestData(now: Date = new Date()): SeedData {
   const seed = createSeedData(now);
   const createdAt = now.toISOString();
-  const users: User[] = [...seed.users];
+  const users: User[] = [
+    ...seed.users,
+    { id: TEST_CUSTOMER_ID, name: "Kavya Iyer", email: "customer@example.test", phone: "+91 90000 00001", role: "user", createdAt },
+  ];
   const providers: ProviderProfile[] = [];
   const services: Service[] = [];
   const slots: AvailabilitySlot[] = [];
@@ -145,7 +151,7 @@ export function createTestData(now: Date = new Date()): SeedData {
       reviews.push({
         id: `rev_${number}_${r + 1}`,
         bookingId: null,
-        userId: DEMO_USER_ID,
+        userId: TEST_CUSTOMER_ID,
         providerId,
         authorName: REVIEWER_NAMES[(index + r) % REVIEWER_NAMES.length],
         rating: r === 2 && fixture.rating < 4.7 ? 4 : 5,
@@ -206,7 +212,7 @@ function createBookings(now: Date, providers: ProviderProfile[], services: Servi
 
     return {
       id: bookingId,
-      userId: DEMO_USER_ID,
+      userId: TEST_CUSTOMER_ID,
       providerId: provider.id,
       serviceId: service.id,
       providerName: provider.name,

@@ -168,7 +168,7 @@ export const serviceUpdateSchema = z.object({
 export const sessionSchema = z.object({
   role: z.enum(["user", "provider", "admin"]),
   providerId: z.string().max(40).optional(),
-  /** Customer account to log into. Omitted = the demo customer. */
+  /** Customer account to log into. Required for the user role. */
   userId: z.string().max(60).optional(),
 });
 

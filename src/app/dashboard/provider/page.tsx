@@ -249,7 +249,7 @@ export default async function ProviderDashboardPage() {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card className="p-6">
             <h2 className="text-lg font-bold">Your rating</h2>
             <div className="mt-1 flex items-center gap-2">

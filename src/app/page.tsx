@@ -232,12 +232,9 @@ export default async function HomePage() {
 
         {/* Floating action pill, overlapping the strip below as in the hero design. */}
         <div className="relative z-10 -mb-9 flex justify-center px-4">
-          <div className="flex gap-2 rounded-full bg-white p-2 shadow-[0_18px_40px_-16px_rgb(30_64_140/0.5)] ring-1 ring-line">
-            <ButtonLink href="#find-care" size="lg" data-testid="hero-book">
+          <div className="rounded-full bg-white p-2 shadow-[0_18px_40px_-16px_rgb(30_64_140/0.5)] ring-1 ring-line">
+            <ButtonLink href={signedIn ? "#find-care" : "/login"} size="lg" data-testid="hero-book">
               Book a home visit
-            </ButtonLink>
-            <ButtonLink href={signedIn ? "/bookings" : "/login"} size="lg" variant="outline">
-              {signedIn ? "My bookings" : "Log in"}
             </ButtonLink>
           </div>
         </div>

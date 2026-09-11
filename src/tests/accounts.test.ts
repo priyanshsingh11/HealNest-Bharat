@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { MemoryRepository } from "@/lib/repository/memory";
-import { createSeedData, DEMO_USER_ID } from "@/lib/seed";
+import { createSeedData } from "@/lib/seed";
 import { createDemoAccount } from "@/lib/services/accounts";
-import { buildSession } from "@/lib/session";
+import { buildSession, GUEST_USER_ID, isGuest } from "@/lib/session";
 import { accountCreateSchema } from "@/lib/validations";
 import { createTestData } from "./fixtures";
 
@@ -28,7 +28,7 @@ describe("createDemoAccount", () => {
     const session = await createDemoAccount(repo, input, NOW);
 
     expect(session.role).toBe("user");
-    expect(session.userId).not.toBe(DEMO_USER_ID);
+    expect(session.userId).not.toBe(GUEST_USER_ID);
     expect(await repo.getUser(session.userId)).toMatchObject({ name: "Isha Verma", email: "isha@example.com", role: "user" });
   });
 
@@ -62,7 +62,7 @@ describe("createDemoAccount", () => {
   });
 
   it("rejects an email that already has an account", async () => {
-    const input = accountCreateSchema.parse({ type: "customer", name: "Aarav", email: "aarav.demo@example.com", phone: "+91 90000 00009" });
+    const input = accountCreateSchema.parse({ type: "customer", name: "Kavya", email: "Customer@example.test", phone: "+91 90000 00009" });
     await expect(createDemoAccount(newRepo(), input, NOW)).rejects.toThrow(/already exists/);
   });
 
@@ -81,11 +81,15 @@ describe("buildSession", () => {
   });
 
   it("never lets a provider login act as a customer", () => {
-    expect(buildSession("user", undefined, "user_prov_01").userId).toBe(DEMO_USER_ID);
-    expect(buildSession("user", undefined, "admin_demo").userId).toBe(DEMO_USER_ID);
+    expect(buildSession("user", undefined, "user_prov_01").userId).toBe(GUEST_USER_ID);
+    expect(buildSession("user", undefined, "admin_demo").userId).toBe(GUEST_USER_ID);
   });
 
-  it("treats a provider login without a profile id as a customer", () => {
-    expect(buildSession("provider", undefined)).toEqual({ role: "user", userId: DEMO_USER_ID, providerId: null });
+  it("treats a provider login without a profile id as a guest", () => {
+    expect(buildSession("provider", undefined)).toEqual({ role: "user", userId: GUEST_USER_ID, providerId: null });
+  });
+
+  it("browses as a guest when nobody is logged in", () => {
+    expect(isGuest(buildSession(undefined, undefined))).toBe(true);
   });
 });

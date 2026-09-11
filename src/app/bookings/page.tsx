@@ -5,11 +5,26 @@ import { ButtonLink } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
 import { getRepository } from "@/lib/db";
 import { formatMoney, formatTimeRange } from "@/lib/formatters";
+import { isGuest } from "@/lib/session";
 
 export const metadata: Metadata = { title: "My bookings" };
 
 export default async function BookingsPage() {
   const session = await getSession();
+  if (isGuest(session)) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">My bookings</h1>
+        <div className="mt-8 rounded-2xl border border-dashed border-line bg-white p-10 text-center">
+          <p className="font-semibold">Log in to see your bookings</p>
+          <ButtonLink href="/login?next=/bookings" className="mt-4">
+            Log in
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  }
+
   const repo = getRepository();
   const bookings =
     session.role === "admin"

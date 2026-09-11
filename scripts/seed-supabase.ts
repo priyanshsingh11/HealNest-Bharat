@@ -1,6 +1,6 @@
 /**
  * Seeds a Supabase project with what a fresh store needs: categories, pricing rules, platform settings and the demo
- * customer and admin accounts. No providers or bookings — caretakers sign up themselves.
+ * admin account. No customers, providers or bookings — people sign up themselves.
  *
  *   1. Run every file in supabase/migrations (in filename order) in the Supabase SQL editor.
  *   2. Put SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local.

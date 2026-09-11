@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { validateQuoteInvariants } from "@/lib/pricing";
 import { MemoryRepository } from "@/lib/repository/memory";
-import { DEMO_USER_ID } from "@/lib/seed";
 import { updatePricingRule, updateProvider } from "@/lib/services/admin";
 import { createBooking, transitionBooking } from "@/lib/services/bookings";
 import { searchProviders } from "@/lib/services/discovery";
 import { buildSession } from "@/lib/session";
 import type { BookingRequest } from "@/lib/validations";
-import { createTestData } from "./fixtures";
+import { createTestData, TEST_CUSTOMER_ID } from "./fixtures";
 
 const NOW = new Date("2026-09-10T06:00:00Z"); // 11:30 IST
-const customer = buildSession("user", undefined);
+const customer = buildSession("user", undefined, TEST_CUSTOMER_ID);
+const guest = buildSession(undefined, undefined);
 const admin = buildSession("admin", undefined);
 const nurseProvider = buildSession("provider", "prov_01");
 const otherProvider = buildSession("provider", "prov_02");
@@ -89,7 +89,7 @@ describe("createBooking", () => {
     const booking = await createBooking(repo, request, customer, NOW);
 
     expect(booking.status).toBe("REQUESTED");
-    expect(booking.userId).toBe(DEMO_USER_ID);
+    expect(booking.userId).toBe(TEST_CUSTOMER_ID);
     expect(booking.totalAmountMinor).toBe(booking.quote.totalMinor);
     expect(validateQuoteInvariants(booking.quote)).toEqual([]);
     expect(booking.quote.lineItems.map((i) => i.type)).toEqual(
@@ -115,6 +115,10 @@ describe("createBooking", () => {
   it("refuses providers that are not verified", async () => {
     await updateProvider(repo, admin, "prov_01", { verificationStatus: "pending" });
     await expect(createBooking(repo, await bookingRequest(), customer, NOW)).rejects.toMatchObject({ status: 422 });
+  });
+
+  it("asks guests to log in before booking", async () => {
+    await expect(createBooking(repo, await bookingRequest(), guest, NOW)).rejects.toMatchObject({ status: 401 });
   });
 
   it("refuses non-customer roles", async () => {

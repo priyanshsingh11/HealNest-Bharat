@@ -147,7 +147,7 @@ Standalone tables: `pricing_rules` (one row per line-item type), `platform_confi
 **Identity**
 - `auth.users` — managed by Supabase Auth. Never written by the app.
 - `app_users` — the app's user record and **role** (`user`, `provider`, `admin`). `auth_user_id` links it to Auth.
-  Ids are text (`user_<uuid-hex>` for real accounts, `user_demo` for seed data).
+  Ids are text (`user_<uuid-hex>` for real accounts, `admin_demo` for the seeded admin).
 
 **Catalogue**
 - `categories` — nurse, physiotherapist, phlebotomist, babysitter, caregiver.
@@ -240,7 +240,7 @@ only. Once uploads go to Storage, store the object path there.
    NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<sb_publishable_… key>
    ```
-5. **Seed:** `npm run db:seed` (categories, pricing rules, platform settings and the demo customer and admin — no
+5. **Seed:** `npm run db:seed` (categories, pricing rules, platform settings and the demo admin — no
    providers or bookings), then `npm run dev`. The footer shows *Data source: Supabase*.
 6. **Create your admin.** Sign up, or use *Authentication → Users → Add user*. Then run:
    ```sql

@@ -1,4 +1,4 @@
-import { DEMO_ADMIN_ID, DEMO_USER_ID } from "@/lib/seed";
+import { DEMO_ADMIN_ID } from "@/lib/seed";
 import type { Role } from "@/types";
 
 // Mock session model. Replace with a real auth provider (e.g. Supabase Auth) later;
@@ -13,11 +13,14 @@ export type Session = {
 
 export const ROLE_COOKIE = "hn_role";
 export const PROVIDER_COOKIE = "hn_provider";
-/** Which customer account is logged in. Absent = the demo customer. */
+/** Which customer account is logged in. Absent = a guest. */
 export const USER_COOKIE = "hn_user";
 
+/** Session user id for someone who isn't logged in. No account has it, so guests can browse but not book. */
+export const GUEST_USER_ID = "guest";
+
 const PROVIDER_ID_PATTERN = /^prov_\d{2,4}$/;
-/** Customer ids: the seeded "user_demo" and created "user_c…" accounts. Provider logins (user_prov_…) never match. */
+/** Customer ids: created "user_c…" accounts and email sign-ups. Provider logins (user_prov_…) never match. */
 const CUSTOMER_ID_PATTERN = /^user_[a-z0-9]{2,40}$/;
 
 export function buildSession(role: string | undefined, providerId: string | undefined, userId?: string): Session {
@@ -25,7 +28,9 @@ export function buildSession(role: string | undefined, providerId: string | unde
   if (role === "provider" && providerId && PROVIDER_ID_PATTERN.test(providerId)) {
     return { role: "provider", userId: `user_${providerId}`, providerId };
   }
-  // No role, or a provider login without a usable profile id: browse as a customer.
-  const customerId = userId && CUSTOMER_ID_PATTERN.test(userId) ? userId : DEMO_USER_ID;
+  // No role, a provider login without a usable profile id, or no customer account: browse as a guest.
+  const customerId = userId && CUSTOMER_ID_PATTERN.test(userId) ? userId : GUEST_USER_ID;
   return { role: "user", userId: customerId, providerId: null };
 }
+
+export const isGuest = (session: Session) => session.userId === GUEST_USER_ID;

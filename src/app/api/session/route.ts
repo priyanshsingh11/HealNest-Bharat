@@ -18,7 +18,8 @@ export async function POST(request: Request) {
       const provider = await repo.getProvider(input.providerId);
       if (!provider) throw notFound("Provider");
     }
-    if (input.role === "user" && input.userId) {
+    if (input.role === "user") {
+      if (!input.userId) throw unprocessable("Choose a customer account.");
       const user = await repo.getUser(input.userId);
       if (!user || user.role !== "user") throw notFound("Customer account");
     }
