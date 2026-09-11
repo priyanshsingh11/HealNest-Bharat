@@ -5,7 +5,6 @@ import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
 import { flattenParams } from "@/lib/location";
 import { isAuthPlaceholder } from "@/lib/services/accounts";
-import { emailCodesAvailable } from "@/lib/supabase-auth";
 import type { CategoryId } from "@/types";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -30,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
     repo.listUsers({ role: "user" }),
   ]);
 
-  // Created accounts by name. Unfinished email sign-ups are not accounts yet.
+  // Created accounts by name. Placeholder rows made by the Supabase Auth sign-up trigger are not accounts.
   const customers: CustomerOption[] = customerUsers
     .filter((user) => !isAuthPlaceholder(user))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -60,7 +59,6 @@ export default async function LoginPage({ searchParams }: PageProps) {
           initialType={params.as === "caretaker" ? "caretaker" : "customer"}
           next={safeNext(params.next)}
           demoEnabled={demoToolsEnabled()}
-          emailCodes={emailCodesAvailable()}
         />
       </div>
     </div>

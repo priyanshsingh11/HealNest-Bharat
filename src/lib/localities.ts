@@ -1,3 +1,5 @@
+import { haversineKm } from "./geo";
+
 // Offline locality lookup used instead of a paid geocoding API in the MVP.
 // Mappls search works with our key but returns no coordinates at this tier, so areas are listed here.
 // Replace `searchLocalities` with a real geocoder later; keep the return shape.
@@ -302,3 +304,18 @@ export function searchLocalities(query: string, limit = 6): Locality[] {
 export function findLocality(id: string): Locality | undefined {
   return LOCALITIES.find((locality) => locality.id === id);
 }
+
+/** Finds the closest registered locality to any given coordinates in India. */
+export function nearestLocality(latitude: number, longitude: number): Locality {
+  let best = LOCALITIES[0];
+  let minDistance = Infinity;
+  for (const loc of LOCALITIES) {
+    const dist = haversineKm({ latitude, longitude }, { latitude: loc.latitude, longitude: loc.longitude });
+    if (dist < minDistance) {
+      minDistance = dist;
+      best = loc;
+    }
+  }
+  return best;
+}
+

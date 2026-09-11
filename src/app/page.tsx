@@ -151,14 +151,15 @@ function HeroTeam({ team, photo }: { team: ProviderProfile[]; photo: string | nu
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+/** Centred number over its label on phones; right-aligned beside a gradient rule on desktop. */
+function Stat({ value, label, className }: { value: string; label: string; className?: string }) {
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex flex-col-reverse text-right">
-        <dt className="text-sm text-ink-muted">{label}</dt>
-        <dd className="text-4xl font-semibold tracking-tight text-brand-600 sm:text-5xl">{value}</dd>
+    <div className={cn("flex items-center gap-4", className)}>
+      <div className="flex flex-col-reverse text-center lg:text-right">
+        <dt className="text-xs text-ink-muted sm:text-sm">{label}</dt>
+        <dd className="text-3xl font-semibold tracking-tight text-brand-600 sm:text-5xl">{value}</dd>
       </div>
-      <span aria-hidden className="relative h-20 w-px bg-gradient-to-b from-brand-300 to-leaf-300">
+      <span aria-hidden className="relative hidden h-20 w-px bg-gradient-to-b from-brand-300 to-leaf-300 lg:block">
         <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-leaf-500" />
       </span>
     </div>
@@ -187,7 +188,8 @@ export default async function HomePage() {
       <EmergencyBanner emergencyNumber={config.emergencyNumber} />
 
       <section aria-labelledby="hero-heading" className="hero-surface">
-        <div className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 sm:pt-16">
+        {/* Bottom padding on phones keeps the stats clear of the floating pill below. */}
+        <div className="mx-auto max-w-7xl px-4 pt-12 pb-14 sm:px-6 sm:pt-16 lg:pb-0">
           <p className="text-center text-xs font-bold tracking-[0.18em] text-brand-700 uppercase sm:text-sm">
             Home visits · Across India
           </p>
@@ -208,24 +210,31 @@ export default async function HomePage() {
               <a href="#find-care" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:underline">
                 Find a verified professional <ArrowDown aria-hidden className="size-4" />
               </a>
-              <div className="flex items-center gap-3 text-left">
-                <span className="grid size-11 place-items-center rounded-2xl bg-white text-leaf-600 shadow-sm">
-                  <HeartHandshake aria-hidden className="size-6" />
-                </span>
-                <div>
-                  <p className="text-3xl font-bold tracking-tight text-ink">{verified.length}</p>
-                  <p className="text-sm text-ink-muted">verified professionals</p>
+              {/* Desktop only; phones show this count in the stats row. Hidden until someone is verified. */}
+              {verified.length > 0 && (
+                <div className="hidden items-center gap-3 text-left lg:flex">
+                  <span className="grid size-11 place-items-center rounded-2xl bg-white text-leaf-600 shadow-sm">
+                    <HeartHandshake aria-hidden className="size-6" />
+                  </span>
+                  <div>
+                    <p className="text-3xl font-bold tracking-tight text-ink">{compactCount(verified.length)}</p>
+                    <p className="text-sm text-ink-muted">verified professionals</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="order-1 lg:order-2">
               <HeroTeam team={team} photo={heroPhotoAvailable() ? HERO_PHOTO : null} />
             </div>
 
-            <dl className="order-3 flex justify-center gap-10 lg:flex-col lg:items-end lg:justify-center lg:gap-8 lg:self-center lg:pb-16">
+            {/* Phones: one evenly spaced row with rules between. Desktop: a right-hand column. Zero counts are left out. */}
+            <dl className="order-3 flex justify-center divide-x divide-brand-200 *:px-5 sm:*:px-8 lg:flex-col lg:items-end lg:justify-center lg:gap-8 lg:divide-x-0 lg:self-center lg:pb-16 lg:*:px-0">
+              {verified.length > 0 && (
+                <Stat value={compactCount(verified.length)} label="Verified professionals" className="lg:hidden" />
+              )}
               <Stat value={String(CARE_SERVICES.length)} label="Home care services" />
-              <Stat value={compactCount(reviewTotal)} label="Reviews from families" />
+              {reviewTotal > 0 && <Stat value={compactCount(reviewTotal)} label="Reviews from families" />}
             </dl>
           </div>
         </div>

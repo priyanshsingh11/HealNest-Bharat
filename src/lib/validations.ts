@@ -194,7 +194,16 @@ export const accountCreateSchema = z.discriminatedUnion("type", [
     ...accountFields,
     category: categorySchema,
     gender: z.enum(["female", "male", "other"], { error: "Choose a gender" }),
-    localityId: z.string().min(1, "Choose where you are based").max(40),
+    localityId: z.string().min(1, "Choose where you are based").max(100),
+    exactLocation: z
+      .object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        locality: z.string().min(1).max(120),
+        city: z.string().min(1).max(80),
+        formattedAddress: z.string().max(400).optional(),
+      })
+      .optional(),
     languages: z
       .array(z.string().trim().min(2, "Language names need at least 2 letters").max(30))
       .min(1, "Add at least one language")
@@ -207,16 +216,3 @@ export const accountCreateSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type AccountCreateInput = z.output<typeof accountCreateSchema>;
-
-/** Email me a code: to log into an existing account, or to confirm the email before a sign-up is created. */
-export const emailCodeRequestSchema = z.discriminatedUnion("intent", [
-  z.object({ intent: z.literal("login"), email: accountFields.email }),
-  z.object({ intent: z.literal("signup"), account: accountCreateSchema }),
-]);
-
-/** The code from the email. A sign-up sends its details again; they're checked afresh before the account is created. */
-export const emailCodeVerifySchema = z.object({
-  email: accountFields.email,
-  token: z.string().trim().regex(/^\d{6,10}$/, "Enter the code from the email"),
-  account: accountCreateSchema.optional(),
-});

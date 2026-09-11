@@ -42,7 +42,9 @@ export async function checkNewAccount(repo: CareRepository, input: AccountCreate
   }
   if (input.type === "customer") return;
 
-  if (!findLocality(input.localityId)) throw unprocessable("Choose where you are based from the list.");
+  if (!input.exactLocation && !findLocality(input.localityId)) {
+    throw unprocessable("Choose where you are based from the list.");
+  }
   const category = (await repo.listCategories()).find((c) => c.id === input.category);
   if (!category?.active) throw unprocessable("This profession is not accepting new caretakers right now.");
 }
@@ -64,7 +66,23 @@ export async function createDemoAccount(repo: CareRepository, input: AccountCrea
     return buildSession("user", undefined, user.id);
   }
 
-  const locality = findLocality(input.localityId)!;
+  const baseLoc = input.exactLocation
+    ? {
+        latitude: input.exactLocation.latitude,
+        longitude: input.exactLocation.longitude,
+        locality: input.exactLocation.locality,
+        city: input.exactLocation.city,
+      }
+    : (() => {
+        const locality = findLocality(input.localityId)!;
+        return {
+          latitude: locality.latitude,
+          longitude: locality.longitude,
+          locality: locality.name,
+          city: locality.city,
+        };
+      })();
+
   for (let attempt = 0; attempt < ID_ATTEMPTS; attempt++) {
     const providerId = await nextProviderId(repo);
     const userId = `user_${providerId}`;
@@ -83,7 +101,7 @@ export async function createDemoAccount(repo: CareRepository, input: AccountCrea
       category: input.category,
       gender: input.gender,
       languages: input.languages,
-      bio: `${PROFESSION_LABELS[input.category]} based in ${locality.name}, ${locality.city}.`,
+      bio: `${PROFESSION_LABELS[input.category]} based in ${baseLoc.locality}, ${baseLoc.city}.`,
       yearsExperience: input.yearsExperience,
       credentials: [],
       // Verification happens from the provider dashboard; only verified caretakers can be booked.
@@ -91,7 +109,7 @@ export async function createDemoAccount(repo: CareRepository, input: AccountCrea
       rating: 0,
       reviewCount: 0,
       serviceRadiusKm: DEFAULT_RADIUS_KM,
-      baseLocation: { latitude: locality.latitude, longitude: locality.longitude, locality: locality.name, city: locality.city },
+      baseLocation: baseLoc,
       // Home lab collection is free to the customer.
       travelFeeMinor: input.category === "phlebotomist" ? 0 : DEFAULT_TRAVEL_FEE_MINOR,
       cancellationPolicy: CANCELLATION_BY_CATEGORY[input.category],
