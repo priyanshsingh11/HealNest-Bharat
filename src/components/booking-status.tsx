@@ -31,16 +31,18 @@ const STEP_HINT: Partial<Record<BookingStatus, string>> = {
 
 /** Vertical status timeline driven by the booking's status history. */
 export function BookingStatusTimeline({ status, history }: { status: BookingStatus; history: StatusEvent[] }) {
+  const path = HAPPY_PATH;
+  const hints = STEP_HINT;
   const reached = new Map(history.map((event) => [event.status, event]));
   const terminal = status === "CANCELLED" || status === "DECLINED" ? reached.get(status) : undefined;
-  const steps = terminal ? HAPPY_PATH.filter((s) => reached.has(s)) : HAPPY_PATH;
-  const currentIndex = HAPPY_PATH.indexOf(status);
+  const steps = terminal ? path.filter((s) => reached.has(s)) : path;
+  const currentIndex = path.indexOf(status);
 
   return (
     <ol className="relative space-y-0" aria-label="Booking progress">
       {steps.map((step, index) => {
         const event = reached.get(step);
-        const done = Boolean(event) && (terminal || HAPPY_PATH.indexOf(step) <= currentIndex);
+        const done = Boolean(event) && (terminal || path.indexOf(step) <= currentIndex);
         const current = !terminal && step === status;
         const last = index === steps.length - 1 && !terminal;
         return (
@@ -61,7 +63,7 @@ export function BookingStatusTimeline({ status, history }: { status: BookingStat
                 <span className="sr-only">{done ? " (done)" : " (upcoming)"}</span>
               </p>
               <p className="text-xs text-ink-muted">
-                {event ? formatDateTime(event.at) : STEP_HINT[step]}
+                {event ? formatDateTime(event.at) : hints[step]}
                 {event?.note ? ` · ${event.note}` : ""}
               </p>
             </div>

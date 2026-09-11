@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { CARE_SERVICES } from "@/lib/care-services";
-import { createSeedData } from "@/lib/mock-data";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { starterServicesFor } from "@/lib/platform-defaults";
 import { MemoryRepository } from "@/lib/repository/memory";
 import { searchProviders } from "@/lib/services/discovery";
+import { createTestData } from "./fixtures";
 
 const NOW = new Date("2026-09-10T06:00:00Z");
 const connaughtPlace = { lat: 28.6315, lng: 77.2167 };
@@ -11,14 +13,14 @@ const koramangala = { lat: 12.9352, lng: 77.6245 };
 let repo: MemoryRepository;
 
 beforeEach(() => {
-  repo = new MemoryRepository(createSeedData(NOW));
+  repo = new MemoryRepository(createTestData(NOW));
 });
 
 describe("care services catalogue", () => {
-  it("every care service is offered by seeded providers in exactly its listed categories", () => {
-    const seed = createSeedData(NOW);
+  it("every care service is a starter service of exactly its listed categories", () => {
+    const starter = DEFAULT_CATEGORIES.flatMap((category) => starterServicesFor(category.id, "prov_01"));
     for (const care of CARE_SERVICES) {
-      const offering = seed.services.filter((s) => s.careService === care.id);
+      const offering = starter.filter((s) => s.careService === care.id);
       expect(offering.length, care.id).toBeGreaterThan(0);
       expect(new Set(offering.map((s) => s.category)), care.id).toEqual(new Set(care.providedBy));
     }
@@ -36,9 +38,9 @@ describe("searchProviders by care service", () => {
     }
   });
 
-  it("spans provider categories, e.g. elderly care from caregivers and doctors", async () => {
+  it("finds elderly care from caregivers", async () => {
     const { results } = await searchProviders(repo, { ...connaughtPlace, service: "elderly-care" }, NOW);
-    expect(new Set(results.map((r) => r.provider.category))).toEqual(new Set(["caregiver", "doctor"]));
+    expect(new Set(results.map((r) => r.provider.category))).toEqual(new Set(["caregiver"]));
   });
 
   it("finds home lab collection near a Bengaluru location", async () => {

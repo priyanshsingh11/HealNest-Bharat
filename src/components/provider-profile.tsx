@@ -1,21 +1,14 @@
 import { BadgeCheck, CalendarDays, Clock, Info, Languages, MapPin, ShieldQuestion, Star } from "lucide-react";
 import Link from "next/link";
-import { CategoryIcon, KIND_TILE, KindBadge, VerificationBadge } from "@/components/category-meta";
+import { KindBadge, VerificationBadge, VerifiedTick } from "@/components/category-meta";
 import { MapPanel } from "@/components/map-panel";
+import { ProviderAvatar } from "@/components/provider-avatar";
+import { ReviewsPanel } from "@/components/reviews/reviews-panel";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, SectionHeading } from "@/components/ui/card";
 import { categoryKind, categoryName } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import {
-  formatDate,
-  formatDistance,
-  formatDuration,
-  formatMoney,
-  formatTime,
-  groupByDay,
-  initials,
-  maskReference,
-} from "@/lib/formatters";
+import { formatDistance, formatDuration, formatMoney, formatTime, groupByDay, maskReference } from "@/lib/formatters";
 import type { ChosenLocation } from "@/lib/location";
 import type { AvailabilitySlot, PlatformConfig, ProviderProfile, Review, Service } from "@/types";
 
@@ -25,11 +18,11 @@ const KIND_NOTICE = {
     text: "Medical service by a registered professional. Home visits are for non-emergency needs only and follow your doctor's written advice where applicable.",
   },
   childcare: {
-    className: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-950",
+    className: "border-leaf-200 bg-leaf-50 text-leaf-950",
     text: "Childcare service — this provider is not a medical professional and cannot give medicines or medical care.",
   },
   non_medical: {
-    className: "border-violet-200 bg-violet-50 text-violet-950",
+    className: "border-leaf-200 bg-leaf-50 text-leaf-950",
     text: "Non-medical personal care — companionship, mobility and daily-living support. This provider cannot give medicines or medical treatment.",
   },
 } as const;
@@ -52,18 +45,16 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
   const days = groupByDay(slots).slice(0, 7);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+    <div className={cn("grid gap-6 lg:grid-cols-[1fr_22rem]", bookable && "pb-24 lg:pb-0")}>
       <div className="min-w-0 space-y-6">
         <Card className="p-6">
           <div className="flex flex-col gap-5 sm:flex-row">
-            <div className={cn("relative grid size-24 shrink-0 place-items-center rounded-3xl text-3xl font-bold", KIND_TILE[kind])} aria-hidden>
-              {initials(provider.name)}
-              <span className="absolute -right-2 -bottom-2 grid size-10 place-items-center rounded-full border-4 border-white bg-white">
-                <CategoryIcon category={provider.category} className="size-5" />
-              </span>
-            </div>
+            <ProviderAvatar provider={provider} size="lg" />
             <div className="min-w-0">
-              <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{provider.name}</h1>
+              <h1 className="flex flex-wrap items-center gap-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                {provider.name}
+                {bookable && <VerifiedTick className="size-7" />}
+              </h1>
               <p className="mt-1 font-medium text-ink-muted">
                 {categoryName(provider.category)} · {provider.yearsExperience} years experience
               </p>
@@ -75,7 +66,9 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
                 <li className="flex items-center gap-1.5">
                   <Star aria-hidden className="size-4 fill-amber-400 text-amber-500" />
                   <span className="font-semibold">{provider.rating.toFixed(1)}</span>
-                  <span className="text-ink-muted">({provider.reviewCount} reviews)</span>
+                  <a href="#reviews" className="text-ink-muted hover:underline">
+                    ({provider.reviewCount} reviews)
+                  </a>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <MapPin aria-hidden className="size-4 text-ink-muted" />
@@ -142,7 +135,7 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
                   </p>
                   <p className="text-sm text-ink-muted">
                     {credential.issuer}
-                    {credential.reference && <> · Reg. no. {maskReference(credential.reference)}</>}
+                    {credential.reference && <span className="whitespace-nowrap"> · Reg. no. {maskReference(credential.reference)}</span>}
                   </p>
                 </div>
               </li>
@@ -151,25 +144,38 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
         </Card>
 
         <Card className="p-6">
-          <SectionHeading id="reviews" title="Reviews" description={`${provider.rating.toFixed(1)} average from ${provider.reviewCount} reviews`} />
-          {reviews.length === 0 ? (
-            <p className="text-sm text-ink-muted">No reviews yet.</p>
-          ) : (
-            <ul className="space-y-4">
-              {reviews.map((review) => (
-                <li key={review.id} className="rounded-xl bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold text-ink">{review.authorName}</p>
-                    <p className="flex items-center gap-1 text-sm" aria-label={`${review.rating} out of 5 stars`}>
-                      <Star aria-hidden className="size-4 fill-amber-400 text-amber-500" /> {review.rating}/5
-                    </p>
-                  </div>
-                  <p className="mt-1 text-sm text-ink">{review.comment}</p>
-                  <p className="mt-1 text-xs text-ink-muted">{formatDate(review.createdAt)}</p>
-                </li>
-              ))}
-            </ul>
-          )}
+          <h2 className="text-lg font-bold text-ink">Home-visit area</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Visits within {provider.serviceRadiusKm} km of {provider.baseLocation.locality}. Travel fee {formatMoney(provider.travelFeeMinor)}.
+          </p>
+          <div className="mt-3">
+            <MapPanel
+              height={220}
+              radius={{ latitude: provider.baseLocation.latitude, longitude: provider.baseLocation.longitude, km: provider.serviceRadiusKm }}
+              markers={[
+                {
+                  id: provider.id,
+                  latitude: provider.baseLocation.latitude,
+                  longitude: provider.baseLocation.longitude,
+                  label: `${provider.name} (approximate base)`,
+                  kind: "provider",
+                },
+                ...(location ? [{ id: "you", latitude: location.latitude, longitude: location.longitude, label: "You", kind: "user" as const }] : []),
+              ]}
+              caption="Approximate area."
+            />
+          </div>
+        </Card>
+
+        <Card className="p-6 text-sm">
+          <h2 className="text-lg font-bold text-ink">Cancellation & refunds</h2>
+          <p className="mt-1 text-ink-muted">{provider.cancellationPolicy}</p>
+          <p className="mt-2 text-ink-muted">{config.refundPolicy}</p>
+        </Card>
+
+        <Card className="scroll-mt-24 p-6" id="reviews">
+          <SectionHeading title="Ratings & reviews" description="From customers after their visit. Reviews marked “Verified visit” come from completed HealNest bookings." />
+          <ReviewsPanel reviews={reviews} rating={provider.rating} reviewCount={provider.reviewCount} />
         </Card>
       </div>
 
@@ -189,8 +195,7 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
           )}
           {outsideArea && (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
-              Your location is {formatDistance(distanceKm!)} away — outside this provider&apos;s {provider.serviceRadiusKm} km service
-              area.
+              Your location is {formatDistance(distanceKm!)} away — outside this provider&apos;s {provider.serviceRadiusKm} km home-visit area.
             </p>
           )}
         </Card>
@@ -207,58 +212,47 @@ export function ProviderProfileView({ provider, services, slots, reviews, config
                 <li key={day.day}>
                   <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">{day.label}</p>
                   <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                    {day.items.map((slot) => (
-                      <li key={slot.id}>
-                        {bookable ? (
-                          <Link
-                            href={bookingHref({ slotId: slot.id })}
-                            className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-900 hover:border-emerald-400"
-                          >
-                            {formatTime(slot.startAt)}
-                          </Link>
-                        ) : (
-                          <span className="inline-flex rounded-md border border-line px-2 py-1 text-xs text-ink-muted">{formatTime(slot.startAt)}</span>
-                        )}
-                      </li>
-                    ))}
+                    {day.items.map((slot) => {
+                      const label = (
+                        <>
+                          {formatTime(slot.startAt)}
+                          {slot.capacity > 1 && <span className="font-medium opacity-80">· {slot.capacity - slot.bookedCount} left</span>}
+                        </>
+                      );
+                      return (
+                        <li key={slot.id}>
+                          {bookable ? (
+                            <Link
+                              href={bookingHref({ slotId: slot.id })}
+                              className="inline-flex min-h-10 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:border-emerald-400"
+                            >
+                              {label}
+                            </Link>
+                          ) : (
+                            <span className="inline-flex min-h-10 items-center gap-1 rounded-md border border-line px-3 text-sm text-ink-muted">{label}</span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs text-ink-muted">Times are arrival windows (IST).</p>
-        </Card>
-
-        <Card className="p-5">
-          <h2 className="font-bold">Service area</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Visits within {provider.serviceRadiusKm} km of {provider.baseLocation.locality}. Travel fee {formatMoney(provider.travelFeeMinor)}.
-          </p>
-          <div className="mt-3">
-            <MapPanel
-              height={220}
-              radius={{ latitude: provider.baseLocation.latitude, longitude: provider.baseLocation.longitude, km: provider.serviceRadiusKm }}
-              markers={[
-                {
-                  id: provider.id,
-                  latitude: provider.baseLocation.latitude,
-                  longitude: provider.baseLocation.longitude,
-                  label: `${provider.name} (approximate base)`,
-                  kind: "provider",
-                },
-                ...(location ? [{ id: "you", latitude: location.latitude, longitude: location.longitude, label: "You", kind: "user" as const }] : []),
-              ]}
-              caption="Approximate area. Map data © OpenStreetMap contributors."
-            />
-          </div>
-        </Card>
-
-        <Card className="p-5 text-sm">
-          <h2 className="font-bold">Cancellation & refunds</h2>
-          <p className="mt-1 text-ink-muted">{provider.cancellationPolicy}</p>
-          <p className="mt-2 text-ink-muted">{config.refundPolicy}</p>
+          <p className="mt-3 text-xs text-ink-muted">Times are IST.</p>
         </Card>
       </div>
+
+      {/* Phone: the sidebar stacks below the reviews, so keep booking reachable in a bottom bar. */}
+      {bookable && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgb(13_82_184/0.08)] backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-xl items-center gap-2">
+            <ButtonLink href={bookingHref()} size="lg" className="flex-1 px-4">
+              Request home visit
+            </ButtonLink>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

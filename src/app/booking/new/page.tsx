@@ -7,7 +7,7 @@ import { KindBadge, VerificationBadge } from "@/components/category-meta";
 import { EmergencyBanner } from "@/components/emergency-banner";
 import { ButtonLink } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
-import { categoryName } from "@/lib/categories";
+import { categoryName, isCategoryActive } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { flattenParams, locationFromParams, toQuery } from "@/lib/location";
 
@@ -22,7 +22,7 @@ export default async function NewBookingPage({ searchParams }: PageProps) {
   const session = await getSession();
 
   const provider = raw.providerId ? await repo.getProvider(raw.providerId) : null;
-  if (!provider || !provider.active) notFound();
+  if (!provider || !provider.active || !(await isCategoryActive(repo, provider.category))) notFound();
 
   const [services, slots, rules, config] = await Promise.all([
     repo.listServices({ providerId: provider.id }),
@@ -42,8 +42,10 @@ export default async function NewBookingPage({ searchParams }: PageProps) {
           <ArrowLeft aria-hidden className="size-4" /> Back to profile
         </Link>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Request a home visit</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-          <span className="font-semibold text-ink">{provider.name}</span>· {categoryName(provider.category)}
+        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-muted">
+          <span className="font-semibold text-ink">{provider.name}</span>
+          <span aria-hidden>·</span>
+          <span>{categoryName(provider.category)}</span>
           <VerificationBadge status={provider.verificationStatus} />
           <KindBadge category={provider.category} />
         </div>

@@ -1,20 +1,20 @@
 "use client";
 
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { CareServiceIcon } from "@/components/category-meta";
-import { CategorySelector } from "@/components/category-selector";
+import { CareServiceIcon, CategoryIcon } from "@/components/category-meta";
 import { LocationPicker } from "@/components/location-picker";
 import { Button } from "@/components/ui/button";
 import { CARE_SERVICES } from "@/lib/care-services";
+import { PROFESSION_LABELS } from "@/lib/categories";
 import { locationToParams, type ChosenLocation } from "@/lib/location";
 import type { CareServiceId, Category, CategoryId } from "@/types";
 
 type Selection = { category?: CategoryId; service?: CareServiceId };
 
-/** Homepage flow: choose a location, then a care service or category → discovery results. */
+/** Homepage flow: choose a location, then a care service or professional → discovery results. */
 export function HomeSearch({ categories }: { categories: Category[] }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,12 +46,9 @@ export function HomeSearch({ categories }: { categories: Category[] }) {
             if (next) setError(undefined);
           }}
         />
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button size="lg" onClick={() => go()} data-testid="find-care">
-            Find care nearby <ArrowRight aria-hidden className="size-4" />
-          </Button>
-          <span className="text-sm text-ink-muted">or pick the kind of help you need below</span>
-        </div>
+        <Button size="lg" className="mt-4 w-full sm:w-auto" onClick={() => go()} data-testid="find-care">
+          Find care nearby <ArrowRight aria-hidden className="size-4" />
+        </Button>
       </div>
 
       <section aria-labelledby="services-heading">
@@ -70,27 +67,38 @@ export function HomeSearch({ categories }: { categories: Category[] }) {
                 type="button"
                 onClick={() => go({ service: service.id })}
                 data-testid={`service-${service.id}`}
-                className="group flex h-full w-full flex-col rounded-2xl border border-line bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md"
+                className="flex h-full w-full flex-col items-start gap-2 rounded-2xl border border-line bg-white p-3 text-left text-sm font-semibold text-ink transition hover:border-brand-300 hover:bg-brand-50 sm:flex-row sm:items-center sm:gap-3 sm:text-base"
               >
-                <span className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-700">
-                  <CareServiceIcon service={service.id} className="size-6" />
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                  <CareServiceIcon service={service.id} className="size-5" />
                 </span>
-                <span className="mt-3 flex items-center justify-between gap-1 font-bold text-ink">
-                  {service.name}
-                  <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-muted transition group-hover:translate-x-0.5" />
-                </span>
-                <span className="mt-1 text-sm text-ink-muted">{service.summary}</span>
+                <span className="min-w-0 break-words">{service.name}</span>
               </button>
             </li>
           ))}
         </ul>
       </section>
 
-      <section aria-labelledby="categories-heading">
-        <h2 id="categories-heading" className="mb-4 text-xl font-bold text-ink">
-          Or choose a type of professional
+      <section aria-labelledby="categories-heading" className="flex flex-wrap items-center gap-3">
+        <h2 id="categories-heading" className="text-sm font-semibold text-ink-muted">
+          Or choose a professional:
         </h2>
-        <CategorySelector categories={categories} onSelect={(category) => go({ category })} />
+        {/* One swipeable row on phones; wraps on wider screens. */}
+        <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+          {categories.map((category) => (
+            <li key={category.id} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => go({ category: category.id })}
+                data-testid={`category-${category.id}`}
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-semibold whitespace-nowrap text-ink transition hover:border-brand-300 hover:text-brand-700"
+              >
+                <CategoryIcon category={category.id} className="size-4" />
+                {PROFESSION_LABELS[category.id]}
+              </button>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );

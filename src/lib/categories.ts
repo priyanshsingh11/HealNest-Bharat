@@ -1,3 +1,4 @@
+import type { CareRepository } from "@/lib/repository/types";
 import type { Category, CategoryId, CategoryKind } from "@/types";
 
 export const DEFAULT_CATEGORIES: Category[] = [
@@ -7,14 +8,6 @@ export const DEFAULT_CATEGORIES: Category[] = [
     shortName: "Nurse",
     kind: "medical",
     description: "Registered nurses for injections, wound dressing, vitals monitoring and post-operative care at home.",
-    active: true,
-  },
-  {
-    id: "doctor",
-    name: "Doctor Home Visit",
-    shortName: "Doctor",
-    kind: "medical",
-    description: "Registered doctors for non-emergency consultations and follow-ups at home.",
     active: true,
   },
   {
@@ -54,7 +47,6 @@ export const DEFAULT_CATEGORIES: Category[] = [
 /** How care professionals describe themselves, e.g. when logging in as a caretaker. */
 export const PROFESSION_LABELS: Record<CategoryId, string> = {
   nurse: "Nurse",
-  doctor: "Doctor",
   physiotherapist: "Physiotherapist",
   phlebotomist: "Lab technician",
   babysitter: "Nanny / Babysitter",
@@ -77,4 +69,9 @@ export function categoryName(id: CategoryId): string {
 
 export function isMedical(id: CategoryId): boolean {
   return categoryKind(id) === "medical";
+}
+
+/** False for switched-off categories, whose providers are hidden and can't be booked. */
+export async function isCategoryActive(repo: Pick<CareRepository, "listCategories">, id: CategoryId): Promise<boolean> {
+  return (await repo.listCategories()).some((category) => category.id === id && category.active);
 }

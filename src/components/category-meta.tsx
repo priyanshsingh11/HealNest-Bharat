@@ -11,18 +11,17 @@ import {
   PersonStanding,
   ShieldAlert,
   ShieldQuestion,
-  Stethoscope,
   Syringe,
   TestTubeDiagonal,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { categoryKind, KIND_LABELS } from "@/lib/categories";
+import { cn } from "@/lib/cn";
 import type { CareServiceId, CategoryId, CategoryKind, VerificationStatus } from "@/types";
 
 export const CATEGORY_ICONS: Record<CategoryId, LucideIcon> = {
   nurse: Syringe,
-  doctor: Stethoscope,
   physiotherapist: PersonStanding,
   phlebotomist: TestTubeDiagonal,
   babysitter: Baby,
@@ -48,8 +47,8 @@ export function CareServiceIcon({ service, className }: { service: CareServiceId
 /** Tailwind classes for the avatar/icon tile of each category kind. */
 export const KIND_TILE: Record<CategoryKind, string> = {
   medical: "bg-sky-100 text-sky-800",
-  childcare: "bg-fuchsia-100 text-fuchsia-800",
-  non_medical: "bg-violet-100 text-violet-800",
+  childcare: "bg-leaf-100 text-leaf-800",
+  non_medical: "bg-leaf-100 text-leaf-800",
 };
 
 const KIND_TONE = { medical: "medical", childcare: "childcare", non_medical: "care" } as const;
@@ -74,6 +73,16 @@ export function VerificationBadge({ status }: { status: VerificationStatus }) {
       <Icon aria-hidden className="size-3.5" />
       {label}
     </Badge>
+  );
+}
+
+/** Blue tick next to a verified provider's name — earned by passing HealNest Bharat verification. */
+export function VerifiedTick({ className }: { className?: string }) {
+  return (
+    <span title="Verified by HealNest Bharat" className={cn("inline-flex size-5 shrink-0", className)}>
+      <BadgeCheck aria-hidden className="size-full fill-brand-600 text-white" />
+      <span className="sr-only">Verified</span>
+    </span>
   );
 }
 

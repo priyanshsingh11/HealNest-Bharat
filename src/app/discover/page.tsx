@@ -1,4 +1,4 @@
-import { Info, SearchX } from "lucide-react";
+import { Info, MapPin, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-meta";
@@ -38,8 +38,9 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
     <>
       <EmergencyBanner emergencyNumber={config.emergencyNumber} />
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,28rem)] lg:items-end">
-          <div>
+        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,28rem)] lg:items-start">
+          {/* lg:pt-7 lines the title up with the location input, below its label. */}
+          <div className="lg:pt-7">
             <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
               {careService ? careService.name : selected ? selected.name : "Care providers"}
               {location && <span className="text-ink-muted"> near {location.label}</span>}
@@ -63,8 +64,12 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
           />
         </div>
 
-        <nav aria-label="Categories" className="mt-6 -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <ul className="flex gap-2">
+        {/* On phones the row scrolls sideways; the fade on the right hints there is more. */}
+        <nav
+          aria-label="Categories"
+          className="mt-6 -mx-4 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_85%,transparent)] sm:mx-0 sm:px-0 sm:[mask-image:none]"
+        >
+          <ul className="flex w-max gap-2 pr-4 sm:w-auto sm:flex-wrap sm:pr-0">
             <li>
               <Link
                 href={`/discover${toQuery(locationQuery)}`}
@@ -104,8 +109,11 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
         )}
 
         {!location || !discovery ? (
-          <div className="mt-10 rounded-2xl border border-dashed border-line bg-white p-10 text-center">
-            <h2 className="text-lg font-bold">Set your location to see nearby providers</h2>
+          <div className="mt-10 rounded-2xl border border-line bg-white px-6 py-14 text-center shadow-sm">
+            <span className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-brand-50 text-brand-700">
+              <MapPin aria-hidden className="size-7" />
+            </span>
+            <h2 className="text-lg font-bold text-ink">Set your location to see nearby providers</h2>
             <p className="mt-1 text-sm text-ink-muted">Search your area above or use your current location.</p>
           </div>
         ) : (
@@ -120,7 +128,7 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
                 {discovery.results.length > 0 && (
                   <MapPanel
                     collapsible
-                    caption="Provider base locations are approximate. Map data © OpenStreetMap contributors."
+                    caption="Provider base locations are approximate."
                     markers={[
                       { id: "you", latitude: location.latitude, longitude: location.longitude, label: `You: ${location.label}`, kind: "user" },
                       ...discovery.results.map((r) => ({
@@ -142,7 +150,7 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
                   <p className="mx-auto mt-1 max-w-md text-sm text-ink-muted">
                     {discovery.totalInCategory > 0
                       ? `${discovery.totalInCategory} provider${discovery.totalInCategory === 1 ? " serves" : "s serve"} this area, but your filters hide them.`
-                      : "No providers for this service or category serve this location yet. Try another one or a nearby area — the demo covers Delhi-NCR, Mumbai and Bengaluru."}
+                      : "No providers for this service or category serve this location yet. Try another one or a nearby area — larger cities have the most providers."}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     <ButtonLink

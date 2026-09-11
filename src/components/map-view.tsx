@@ -43,7 +43,7 @@ export default function MapView({ markers, radius, height = 320 }: MapViewProps)
         <Circle
           center={[radius.latitude, radius.longitude]}
           radius={radius.km * 1000}
-          pathOptions={{ color: "#0b6a61", fillColor: "#16a394", fillOpacity: 0.12, weight: 1.5 }}
+          pathOptions={{ color: "#2f7519", fillColor: "#6cc02f", fillOpacity: 0.12, weight: 1.5 }}
         />
       )}
       {markers.map((marker) => (
@@ -53,8 +53,8 @@ export default function MapView({ markers, radius, height = 320 }: MapViewProps)
           radius={marker.kind === "user" ? 9 : 7}
           pathOptions={
             marker.kind === "user"
-              ? { color: "#ffffff", weight: 3, fillColor: "#1d64c8", fillOpacity: 1 }
-              : { color: "#ffffff", weight: 2, fillColor: "#0b6a61", fillOpacity: 0.95 }
+              ? { color: "#ffffff", weight: 3, fillColor: "#1266d6", fillOpacity: 1 }
+              : { color: "#ffffff", weight: 2, fillColor: "#2f7519", fillOpacity: 0.95 }
           }
         >
           <Tooltip>{marker.label}</Tooltip>

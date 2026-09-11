@@ -1,12 +1,12 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { createSeedData } from "@/lib/mock-data";
 import { MemoryRepository } from "@/lib/repository/memory";
 import { SupabaseRepository } from "@/lib/repository/supabase";
 import type { CareRepository } from "@/lib/repository/types";
+import { createSeedData } from "@/lib/seed";
 
 // Chooses the data source once per server process.
-//   DATA_SOURCE=memory   → seeded in-memory data
+//   DATA_SOURCE=memory   → in-memory store (settings and demo accounts only; resets on restart)
 //   DATA_SOURCE=supabase → Supabase (requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)
 //   DATA_SOURCE=auto     → Supabase when configured, otherwise in-memory (default)
 
@@ -35,6 +35,11 @@ function createRepository(): CareRepository {
 
 /** Shared repository instance. Cached on globalThis so dev hot-reloads keep in-memory state. */
 export function getRepository(): CareRepository {
-  globalStore.__healnestRepository ??= createRepository();
-  return globalStore.__healnestRepository;
+  const cached = globalStore.__healnestRepository;
+  // After a hot reload a cached Supabase repository is an instance of the previous class and can miss new methods.
+  // It holds no state, so rebuild it. (The in-memory one is kept on purpose; restart the server to pick up its changes.)
+  if (!cached || (cached.kind === "supabase" && !(cached instanceof SupabaseRepository))) {
+    globalStore.__healnestRepository = createRepository();
+  }
+  return globalStore.__healnestRepository!;
 }

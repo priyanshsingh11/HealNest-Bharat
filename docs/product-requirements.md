@@ -5,7 +5,7 @@ The full brief is in [`../healnest_bharat.md`](../healnest_bharat.md). This page
 ## Concept
 
 A responsive web marketplace to discover and request nearby, verified care providers who visit the user's home:
-home nurses, doctors (non-emergency home consultations), babysitters/nannies, and caregivers for elders or people with disabilities.
+home nurses, physiotherapists, phlebotomists (home lab collection), babysitters/nannies, and caregivers for elders or people with disabilities.
 
 ## Safety & business boundaries (implemented)
 

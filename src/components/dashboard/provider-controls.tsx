@@ -2,13 +2,13 @@
 
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/field";
 import { nextHappyStatus, STATUS_LABELS } from "@/lib/booking-status";
 import { apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
-import { formatTime, groupByDay } from "@/lib/formatters";
+import { formatDuration, formatTime, groupByDay } from "@/lib/formatters";
 import type { AvailabilitySlot, BookingStatus } from "@/types";
 
 function useMutation() {
@@ -29,6 +29,22 @@ function useMutation() {
   return { pending, error, mutate };
 }
 
+function ErrorText({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="text-sm text-rose-700">
+      {message}
+    </p>
+  );
+}
+
+/** Pill-shaped radio/checkbox label; the native input is visually hidden. */
+const pill = (active: boolean) =>
+  cn(
+    "inline-flex h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-semibold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sea-600",
+    active ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white text-ink hover:border-brand-300",
+  );
+
 const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
   ACCEPTED: "Mark on the way",
   ON_THE_WAY: "Mark arrived",
@@ -36,11 +52,12 @@ const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
   IN_PROGRESS: "Complete visit",
 };
 
-/** Accept / decline incoming requests and advance active visits. */
-export function RequestActions({ bookingId, status }: { bookingId: string; status: BookingStatus }) {
+/** Accept / decline incoming requests and advance active visits. In the patient queue the last step reads "Mark attended". */
+export function RequestActions({ bookingId, status, queue = false }: { bookingId: string; status: BookingStatus; queue?: boolean }) {
   const { pending, error, mutate } = useMutation();
   const setStatus = (next: BookingStatus) => mutate(() => apiRequest(`/api/bookings/${bookingId}`, "PATCH", { status: next }));
   const next = nextHappyStatus(status);
+  const label = queue && status === "IN_PROGRESS" ? "Mark attended" : NEXT_ACTION_LABEL[status];
 
   return (
     <div>
@@ -56,9 +73,9 @@ export function RequestActions({ bookingId, status }: { bookingId: string; statu
           </>
         ) : (
           next &&
-          NEXT_ACTION_LABEL[status] && (
+          label && (
             <Button size="sm" disabled={pending} onClick={() => setStatus(next)}>
-              {NEXT_ACTION_LABEL[status]}
+              {label}
             </Button>
           )
         )}
@@ -80,90 +97,162 @@ export function RequestActions({ bookingId, status }: { bookingId: string; statu
   );
 }
 
-/** Toggle slots between open and blocked, and add new availability windows. */
-export function AvailabilityManager({ providerId, slots, dayOptions }: { providerId: string; slots: AvailabilitySlot[]; dayOptions: { value: string; label: string }[] }) {
+const SLOT_TONE = {
+  open: "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+  partly: "border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100",
+  blocked: "border-line bg-canvas text-ink/70 hover:bg-line",
+  full: "cursor-not-allowed border-sky-200 bg-sky-50 text-sky-900",
+};
+
+/** Open or block individual slots. Full slots are managed through their bookings. */
+export function SlotList({ slots }: { slots: AvailabilitySlot[] }) {
   const { pending, error, mutate } = useMutation();
-  const [day, setDay] = useState(dayOptions[0]?.value ?? "");
-  const [hour, setHour] = useState("10");
-  const [duration, setDuration] = useState("120");
   const days = groupByDay(slots);
 
   return (
     <div className="space-y-5">
-      {days.length === 0 && <p className="text-sm text-ink-muted">No availability in the next 7 days.</p>}
+      {days.length === 0 && <p className="text-sm text-ink-muted">No slots yet. Add availability above.</p>}
       {days.map((group) => (
         <div key={group.day}>
           <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">{group.label}</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {group.items.map((slot) => (
-              <li key={slot.id}>
-                <button
-                  type="button"
-                  disabled={pending || slot.status === "booked"}
-                  aria-pressed={slot.status === "open"}
-                  onClick={() => mutate(() => apiRequest(`/api/slots/${slot.id}`, "PATCH", { status: slot.status === "open" ? "blocked" : "open" }))}
-                  title={slot.status === "booked" ? "Booked — manage via the booking" : slot.status === "open" ? "Click to block" : "Click to open"}
-                  className={cn(
-                    "rounded-lg border px-3 py-1.5 text-xs font-semibold",
-                    slot.status === "open" && "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
-                    slot.status === "blocked" && "border-line bg-slate-100 text-ink-muted line-through hover:bg-slate-200",
-                    slot.status === "booked" && "cursor-not-allowed border-sky-200 bg-sky-50 text-sky-900",
-                  )}
-                >
-                  {formatTime(slot.startAt)} · {slot.status}
-                </button>
-              </li>
-            ))}
+          <ul className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            {group.items.map((slot) => {
+              const full = slot.status === "booked";
+              const tone = full ? "full" : slot.status === "blocked" ? "blocked" : slot.bookedCount > 0 ? "partly" : "open";
+              return (
+                <li key={slot.id}>
+                  <button
+                    type="button"
+                    disabled={pending || full}
+                    aria-pressed={slot.status === "open"}
+                    onClick={() => mutate(() => apiRequest(`/api/slots/${slot.id}`, "PATCH", { status: slot.status === "open" ? "blocked" : "open" }))}
+                    title={full ? "Full — manage it through the bookings" : slot.status === "open" ? "Click to block" : "Click to open"}
+                    className={cn("flex w-full flex-col items-start rounded-lg border px-3 py-1.5 text-left text-xs font-semibold", SLOT_TONE[tone])}
+                  >
+                    <span className={cn("whitespace-nowrap", slot.status === "blocked" && "line-through")}>
+                      {formatTime(slot.startAt)} – {formatTime(slot.endAt)}
+                    </span>
+                    <span className="font-medium opacity-80">
+                      {full ? "full" : slot.status}
+                      {slot.capacity > 1 && ` · ${slot.bookedCount}/${slot.capacity}`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
-
-      <form
-        className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const startAt = `${day}T${hour.padStart(2, "0")}:00:00+05:30`;
-          mutate(() => apiRequest(`/api/providers/${providerId}/slots`, "POST", { startAt, durationMinutes: Number(duration) }));
-        }}
-      >
-        <div>
-          <Label htmlFor="slot-day">Day</Label>
-          <Select id="slot-day" value={day} onChange={(e) => setDay(e.target.value)}>
-            {dayOptions.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="slot-hour">Start (IST)</Label>
-          <Select id="slot-hour" value={hour} onChange={(e) => setHour(e.target.value)}>
-            {Array.from({ length: 15 }, (_, i) => i + 7).map((h) => (
-              <option key={h} value={String(h)}>
-                {h}:00
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="slot-duration">Window</Label>
-          <Select id="slot-duration" value={duration} onChange={(e) => setDuration(e.target.value)}>
-            <option value="60">1 hour</option>
-            <option value="120">2 hours</option>
-            <option value="240">4 hours</option>
-          </Select>
-        </div>
-        <Button type="submit" variant="secondary" disabled={pending}>
-          <Plus aria-hidden className="size-4" /> Add slot
-        </Button>
-      </form>
-      {error && (
-        <p role="alert" className="text-sm text-rose-700">
-          {error}
-        </p>
-      )}
+      <ErrorText message={error} />
     </div>
+  );
+}
+
+/** 06:00 to 22:00 in 30-minute steps. */
+const START_TIMES = Array.from({ length: 33 }, (_, i) => {
+  const minutes = 6 * 60 + i * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+});
+const DURATIONS = [30, 60, 90, 120, 180, 240];
+
+function clockLabel(hhmm: string): string {
+  const [hours, minutes] = hhmm.split(":").map(Number);
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours >= 12 ? "pm" : "am"}`;
+}
+
+export type DayOption = { value: string; label: string; weekend: boolean };
+
+/** Opens the same window on several days. */
+export function SlotBuilder({ providerId, dayOptions }: { providerId: string; dayOptions: DayOption[] }) {
+  const { pending, error, mutate } = useMutation();
+  const [dates, setDates] = useState<string[]>([]);
+  const [startTime, setStartTime] = useState("10:00");
+  const [duration, setDuration] = useState("120");
+  const [message, setMessage] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const toggle = (value: string) => setDates((d) => (d.includes(value) ? d.filter((x) => x !== value) : [...d, value]));
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setMessage(null);
+    setLocalError(null);
+    if (!dates.length) {
+      setLocalError("Choose at least one day.");
+      return;
+    }
+    const count = dates.length;
+    const ok = await mutate(() =>
+      apiRequest(`/api/providers/${providerId}/slots`, "POST", {
+        dates,
+        startTime,
+        durationMinutes: Number(duration),
+      }),
+    );
+    if (ok) {
+      setMessage(`Added ${count} ${count === 1 ? "slot" : "slots"}.`);
+      setDates([]);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <fieldset>
+        <legend className="text-sm font-semibold text-ink">Days</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {dayOptions.map((day) => (
+            <label key={day.value} className={pill(dates.includes(day.value))}>
+              <input type="checkbox" className="sr-only" checked={dates.includes(day.value)} onChange={() => toggle(day.value)} />
+              {day.label}
+            </label>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-4 text-sm">
+          <button type="button" className="font-semibold text-brand-700 underline underline-offset-2" onClick={() => setDates(dayOptions.filter((d) => !d.weekend).map((d) => d.value))}>
+            Weekdays
+          </button>
+          <button type="button" className="font-semibold text-brand-700 underline underline-offset-2" onClick={() => setDates(dayOptions.map((d) => d.value))}>
+            Every day
+          </button>
+          <button type="button" className="font-semibold text-ink-muted underline underline-offset-2" onClick={() => setDates([])}>
+            Clear
+          </button>
+        </div>
+      </fieldset>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="slot-start">Start (IST)</Label>
+          <Select id="slot-start" value={startTime} onChange={(e) => setStartTime(e.target.value)}>
+            {START_TIMES.map((t) => (
+              <option key={t} value={t}>
+                {clockLabel(t)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="slot-duration">Length</Label>
+          <Select id="slot-duration" value={duration} onChange={(e) => setDuration(e.target.value)}>
+            {DURATIONS.map((m) => (
+              <option key={m} value={m}>
+                {formatDuration(m)}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="secondary" disabled={pending}>
+          <Plus aria-hidden className="size-4" /> Add {dates.length > 1 ? `${dates.length} slots` : "slot"}
+        </Button>
+        <p aria-live="polite" className="text-sm text-emerald-800">
+          {message}
+        </p>
+      </div>
+      <ErrorText message={localError ?? error} />
+    </form>
   );
 }
 

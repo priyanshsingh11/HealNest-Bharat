@@ -13,6 +13,7 @@ import type {
   Service,
   StatusEvent,
   User,
+  VerificationApplication,
 } from "@/types";
 
 // Row shapes for the Supabase (Postgres) schema in supabase/migrations, and camelCase ↔ snake_case mapping.
@@ -33,6 +34,7 @@ export type ProviderRow = {
   id: string;
   user_id: string;
   name: string;
+  photo_url: string | null;
   category: string;
   gender: string;
   languages: string[];
@@ -67,7 +69,15 @@ export type ServiceRow = {
   active: boolean;
 };
 
-export type SlotRow = { id: string; provider_id: string; start_at: string; end_at: string; status: string };
+export type SlotRow = {
+  id: string;
+  provider_id: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  capacity: number;
+  booked_count: number;
+};
 
 export type ReviewRow = {
   id: string;
@@ -76,8 +86,22 @@ export type ReviewRow = {
   provider_id: string;
   author_name: string;
   rating: number;
+  aspects: Review["aspects"] | null;
+  would_recommend: boolean | null;
   comment: string;
   created_at: string;
+};
+
+export type VerificationRow = {
+  id: string;
+  provider_id: string;
+  category: string;
+  status: string;
+  details: VerificationApplication["details"];
+  documents: VerificationApplication["documents"];
+  submitted_at: string;
+  reviewed_at: string | null;
+  reviewer_note: string;
 };
 
 export type PricingRuleRow = { id: string; item_type: string; label: string; mode: string; value: number; active: boolean };
@@ -214,6 +238,7 @@ export const toProvider = (r: ProviderRow): ProviderProfile => ({
   id: r.id,
   userId: r.user_id,
   name: r.name,
+  photoUrl: r.photo_url ?? null,
   category: r.category as ProviderProfile["category"],
   gender: r.gender as ProviderProfile["gender"],
   languages: r.languages ?? [],
@@ -234,6 +259,7 @@ export const fromProvider = (p: ProviderProfile): ProviderRow => ({
   id: p.id,
   user_id: p.userId,
   name: p.name,
+  photo_url: p.photoUrl,
   category: p.category,
   gender: p.gender,
   languages: p.languages,
@@ -289,6 +315,8 @@ export const toSlot = (r: SlotRow): AvailabilitySlot => ({
   startAt: new Date(r.start_at).toISOString(),
   endAt: new Date(r.end_at).toISOString(),
   status: r.status as AvailabilitySlot["status"],
+  capacity: r.capacity ?? 1,
+  bookedCount: r.booked_count ?? 0,
 });
 
 export const fromSlot = (s: AvailabilitySlot): SlotRow => ({
@@ -297,6 +325,8 @@ export const fromSlot = (s: AvailabilitySlot): SlotRow => ({
   start_at: s.startAt,
   end_at: s.endAt,
   status: s.status,
+  capacity: s.capacity,
+  booked_count: s.bookedCount,
 });
 
 export const toReview = (r: ReviewRow): Review => ({
@@ -306,6 +336,8 @@ export const toReview = (r: ReviewRow): Review => ({
   providerId: r.provider_id,
   authorName: r.author_name,
   rating: r.rating,
+  aspects: r.aspects ?? {},
+  wouldRecommend: r.would_recommend ?? null,
   comment: r.comment,
   createdAt: new Date(r.created_at).toISOString(),
 });
@@ -317,8 +349,34 @@ export const fromReview = (r: Review): ReviewRow => ({
   provider_id: r.providerId,
   author_name: r.authorName,
   rating: r.rating,
+  aspects: r.aspects,
+  would_recommend: r.wouldRecommend,
   comment: r.comment,
   created_at: r.createdAt,
+});
+
+export const toVerification = (r: VerificationRow): VerificationApplication => ({
+  id: r.id,
+  providerId: r.provider_id,
+  category: r.category as VerificationApplication["category"],
+  status: r.status as VerificationApplication["status"],
+  details: r.details,
+  documents: r.documents ?? [],
+  submittedAt: new Date(r.submitted_at).toISOString(),
+  reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : null,
+  reviewerNote: r.reviewer_note,
+});
+
+export const fromVerification = (a: VerificationApplication): VerificationRow => ({
+  id: a.id,
+  provider_id: a.providerId,
+  category: a.category,
+  status: a.status,
+  details: a.details,
+  documents: a.documents,
+  submitted_at: a.submittedAt,
+  reviewed_at: a.reviewedAt,
+  reviewer_note: a.reviewerNote,
 });
 
 export const toPricingRule = (r: PricingRuleRow): PricingRule => ({

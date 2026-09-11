@@ -1,6 +1,17 @@
-import { notFound } from "@/lib/errors";
-import type { SeedData } from "@/lib/mock-data";
-import type { AuditLogEntry, Booking, CategoryId, PlatformConfig, SlotStatus } from "@/types";
+import { conflict, notFound } from "@/lib/errors";
+import type { SeedData } from "@/lib/seed";
+import type {
+  AuditLogEntry,
+  Booking,
+  CategoryId,
+  PlatformConfig,
+  ProviderProfile,
+  Review,
+  Service,
+  SlotStatus,
+  User,
+  VerificationApplication,
+} from "@/types";
 import type {
   BookingFilter,
   BookingPatch,
@@ -11,12 +22,15 @@ import type {
   ProviderPatch,
   ServicePatch,
   SlotFilter,
+  UserFilter,
+  VerificationFilter,
+  VerificationPatch,
 } from "./types";
 
 const clone = <T>(value: T): T => structuredClone(value);
 const byStart = (a: { startAt: string }, b: { startAt: string }) => a.startAt.localeCompare(b.startAt);
 
-/** In-memory repository backed by seeded mock data. Data resets when the server restarts. */
+/** In-memory repository, starting from the seed (settings and demo accounts). Data resets when the server restarts. */
 export class MemoryRepository implements CareRepository {
   readonly kind = "memory" as const;
   private readonly state: SeedData & { auditLogs: AuditLogEntry[] };
@@ -29,6 +43,16 @@ export class MemoryRepository implements CareRepository {
   async getUser(id: string) {
     const user = this.state.users.find((u) => u.id === id);
     return user ? clone(user) : null;
+  }
+
+  async listUsers(filter: UserFilter = {}) {
+    return clone(this.state.users.filter((u) => !filter.role || u.role === filter.role));
+  }
+
+  async createUser(user: User) {
+    if (this.state.users.some((u) => u.id === user.id)) throw conflict("That account already exists.");
+    this.state.users.push(clone(user));
+    return clone(user);
   }
 
   async listCategories() {
@@ -55,7 +79,14 @@ export class MemoryRepository implements CareRepository {
   async updateProvider(id: string, patch: ProviderPatch) {
     const provider = this.state.providers.find((p) => p.id === id);
     if (!provider) throw notFound("Provider");
-    Object.assign(provider, patch);
+    Object.assign(provider, clone(patch));
+    return clone(provider);
+  }
+
+  async createProvider(provider: ProviderProfile, services: Service[]) {
+    if (this.state.providers.some((p) => p.id === provider.id)) throw conflict("That provider profile already exists.");
+    this.state.providers.push(clone(provider));
+    this.state.services.push(...clone(services));
     return clone(provider);
   }
 
@@ -114,14 +145,17 @@ export class MemoryRepository implements CareRepository {
 
   async reserveSlot(id: string) {
     const slot = this.state.slots.find((s) => s.id === id);
-    if (!slot || slot.status !== "open") return false;
-    slot.status = "booked";
+    if (!slot || slot.status !== "open" || slot.bookedCount >= slot.capacity) return false;
+    slot.bookedCount += 1;
+    if (slot.bookedCount >= slot.capacity) slot.status = "booked";
     return true;
   }
 
   async releaseSlot(id: string) {
     const slot = this.state.slots.find((s) => s.id === id);
-    if (slot && slot.status === "booked") slot.status = "open";
+    if (!slot || slot.bookedCount === 0) return;
+    slot.bookedCount -= 1;
+    if (slot.status === "booked") slot.status = "open";
   }
 
   async listReviews(providerId: string) {
@@ -130,6 +164,44 @@ export class MemoryRepository implements CareRepository {
         .filter((r) => r.providerId === providerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
+  }
+
+  async createReview(review: Review) {
+    if (review.bookingId && this.state.reviews.some((r) => r.bookingId === review.bookingId)) {
+      throw conflict("This visit has already been reviewed.");
+    }
+    this.state.reviews.push(clone(review));
+    return clone(review);
+  }
+
+  async getReviewForBooking(bookingId: string) {
+    const review = this.state.reviews.find((r) => r.bookingId === bookingId);
+    return review ? clone(review) : null;
+  }
+
+  async listVerificationApplications(filter: VerificationFilter = {}) {
+    return clone(
+      this.state.verificationApplications
+        .filter((a) => (!filter.providerId || a.providerId === filter.providerId) && (!filter.status || a.status === filter.status))
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)),
+    );
+  }
+
+  async getVerificationApplication(id: string) {
+    const application = this.state.verificationApplications.find((a) => a.id === id);
+    return application ? clone(application) : null;
+  }
+
+  async createVerificationApplication(application: VerificationApplication) {
+    this.state.verificationApplications.push(clone(application));
+    return clone(application);
+  }
+
+  async updateVerificationApplication(id: string, patch: VerificationPatch) {
+    const application = this.state.verificationApplications.find((a) => a.id === id);
+    if (!application) throw notFound("Verification application");
+    Object.assign(application, patch);
+    return clone(application);
   }
 
   async listPricingRules() {

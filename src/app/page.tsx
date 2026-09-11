@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { ArrowUpRight, BadgeCheck, HeartHandshake, Lock, Plus, Receipt, Star } from "lucide-react";
+import { ArrowDown, BadgeCheck, HeartHandshake, Lock, Plus, Receipt, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-meta";
@@ -20,17 +20,17 @@ const TRUST_POINTS = [
   {
     icon: BadgeCheck,
     title: "Verified professionals",
-    body: "Doctors and nurses show their council registration. Every provider displays their verification status.",
+    body: "Every provider shows their verification status and registration.",
   },
   {
     icon: Receipt,
-    title: "Transparent, itemised pricing",
-    body: "See the visit fee, medicines, travel, platform fee and tax as separate lines before you confirm.",
+    title: "Itemised pricing",
+    body: "See every charge, line by line, before you confirm.",
   },
   {
     icon: Lock,
     title: "Your location stays private",
-    body: "Your address is shared with a provider only after you give consent and confirm a booking.",
+    body: "Shared with a provider only after you confirm a booking.",
   },
 ];
 
@@ -56,11 +56,10 @@ function heroPhotoAvailable(): boolean {
 const HERO_PHOTO_ADJUST = { zoom: 1, moveX: 0, moveY: 28 };
 
 /** Hero portraits, left to right. The middle one is featured. */
-const HERO_TEAM: CategoryId[] = ["nurse", "doctor", "physiotherapist"];
+const HERO_TEAM: CategoryId[] = ["caregiver", "nurse", "physiotherapist"];
 
 const PROFESSION_PLURALS: Record<CategoryId, string> = {
   nurse: "Nurses",
-  doctor: "Doctors",
   physiotherapist: "Physiotherapists",
   phlebotomist: "Lab technicians",
   babysitter: "Nannies",
@@ -158,8 +157,8 @@ function Stat({ value, label }: { value: string; label: string }) {
         <dt className="text-sm text-ink-muted">{label}</dt>
         <dd className="text-4xl font-semibold tracking-tight text-brand-600 sm:text-5xl">{value}</dd>
       </div>
-      <span aria-hidden className="relative h-20 w-px bg-brand-300">
-        <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-brand-600" />
+      <span aria-hidden className="relative h-20 w-px bg-gradient-to-b from-brand-300 to-leaf-300">
+        <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-leaf-500" />
       </span>
     </div>
   );
@@ -189,13 +188,13 @@ export default async function HomePage() {
       <section aria-labelledby="hero-heading" className="hero-surface">
         <div className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 sm:pt-16">
           <p className="text-center text-xs font-bold tracking-[0.18em] text-brand-700 uppercase sm:text-sm">
-            Home visits · Delhi-NCR · Mumbai · Bengaluru
+            Home visits · Across India
           </p>
           <h1
             id="hero-heading"
             className="mx-auto mt-4 max-w-4xl text-center text-4xl leading-[1.1] font-extrabold tracking-tight text-ink sm:text-6xl"
           >
-            Trusted <span className="text-brand-600">Care</span> at Your Doorstep
+            Trusted <span className="text-brand-gradient">Care</span> at Your Doorstep
           </h1>
 
           <div className="mt-4 grid items-end gap-8 lg:mt-6 lg:grid-cols-[1fr_minmax(0,36rem)_1fr]">
@@ -206,10 +205,10 @@ export default async function HomePage() {
                 you, with every rupee explained before you book.
               </p>
               <a href="#find-care" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:underline">
-                Find a verified professional <ArrowUpRight aria-hidden className="size-4" />
+                Find a verified professional <ArrowDown aria-hidden className="size-4" />
               </a>
               <div className="flex items-center gap-3 text-left">
-                <span className="grid size-11 place-items-center rounded-2xl bg-white text-brand-600 shadow-sm">
+                <span className="grid size-11 place-items-center rounded-2xl bg-white text-leaf-600 shadow-sm">
                   <HeartHandshake aria-hidden className="size-6" />
                 </span>
                 <div>
@@ -244,50 +243,50 @@ export default async function HomePage() {
       </section>
 
       <section aria-label="Care professionals on HealNest Bharat" className="border-b border-line bg-white pt-16 pb-10">
-        <ul className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-10 gap-y-5 px-4 sm:px-6">
-          {active.map((category) => (
-            <li key={category.id}>
-              <Link
-                href={`/discover${toQuery({ category: category.id })}`}
-                className="flex items-center gap-2.5 text-lg font-bold text-slate-500 transition-colors hover:text-brand-700"
+        <div className="marquee mx-auto max-w-6xl">
+          <div className="marquee-track">
+            {/* Four copies, so half the track is always wider than the strip and the loop never shows a gap on wide
+                screens. Only the first copy is real; the rest are hidden from screen readers and tabbing. */}
+            {[0, 1, 2, 3].map((copy) => (
+              <ul
+                key={copy}
+                aria-hidden={copy > 0 || undefined}
+                className={cn(
+                  "flex shrink-0 gap-4 pr-4 sm:gap-5 sm:pr-5",
+                  "motion-reduce:w-full motion-reduce:shrink motion-reduce:flex-wrap motion-reduce:justify-center motion-reduce:px-4",
+                  copy > 0 && "motion-reduce:hidden",
+                )}
               >
-                <CategoryIcon category={category.id} className="size-6" />
-                {PROFESSION_PLURALS[category.id]}
-              </Link>
-            </li>
-          ))}
-        </ul>
+                {active.map((category) => (
+                  <li key={category.id} className="shrink-0">
+                    <Link
+                      href={`/discover${toQuery({ category: category.id })}`}
+                      tabIndex={copy > 0 ? -1 : undefined}
+                      className="flex items-center gap-2.5 rounded-full bg-brand-50/60 px-5 py-2.5 text-base font-bold whitespace-nowrap text-ink-muted ring-1 ring-line transition-colors hover:text-brand-700 hover:ring-brand-300 sm:px-6 sm:py-3 sm:text-lg"
+                    >
+                      <CategoryIcon category={category.id} className="size-6 text-brand-600" />
+                      {PROFESSION_PLURALS[category.id]}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section id="find-care" aria-labelledby="find-care-heading" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <h2 id="find-care-heading" className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            Find <span className="text-brand-600">care</span> near you
+            Find <span className="text-brand-gradient">care</span> near you
           </h2>
           <p className="mt-2 text-ink-muted">Choose your area, then the help you need.</p>
         </div>
         <HomeSearch categories={active} />
       </section>
 
-      <section aria-labelledby="trust-heading" className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
-        <h2 id="trust-heading" className="sr-only">
-          Why HealNest Bharat
-        </h2>
-        <ul className="grid gap-4 md:grid-cols-3">
-          {TRUST_POINTS.map(({ icon: Icon, title, body }) => (
-            <li key={title} className="rounded-3xl border border-line bg-white p-6 shadow-sm">
-              <span className="grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
-                <Icon aria-hidden className="size-6" />
-              </span>
-              <h3 className="mt-4 font-bold text-ink">{title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-ink-muted">{body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       <section aria-labelledby="how-heading" className="border-t border-line bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
           <h2 id="how-heading" className="text-center text-3xl font-extrabold tracking-tight text-ink">
             How it works
           </h2>
@@ -304,6 +303,19 @@ export default async function HomePage() {
               </li>
             ))}
           </ol>
+          <ul aria-label="Why HealNest Bharat" className="mt-12 grid gap-6 border-t border-line pt-10 md:grid-cols-3">
+            {TRUST_POINTS.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex gap-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-leaf-50 text-leaf-700">
+                  <Icon aria-hidden className="size-5" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-ink">{title}</h3>
+                  <p className="mt-1 text-sm text-ink-muted">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
           <p className="mx-auto mt-10 max-w-3xl text-center text-sm text-ink-muted">
             HealNest Bharat connects you with independent providers. It is not an emergency service and does not offer
             diagnosis or treatment advice. Babysitters and caregivers provide non-medical support only.

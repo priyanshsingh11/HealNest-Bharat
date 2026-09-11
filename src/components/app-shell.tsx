@@ -1,12 +1,14 @@
-import { HeartPulse, Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BrandMark, Wordmark } from "@/components/brand-logo";
 import { LogoutButton } from "@/components/logout-button";
 import { NavLinks, type NavItem } from "@/components/nav-links";
 import { ButtonLink } from "@/components/ui/button";
 import { getSession, isSignedIn } from "@/lib/auth";
 import { PROFESSION_LABELS } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
+import { initials } from "@/lib/formatters";
 import type { CareRepository } from "@/lib/repository/types";
 import { ROLE_LABELS } from "@/lib/roles";
 import type { Session } from "@/lib/session";
@@ -34,6 +36,23 @@ async function describeAccount(repo: CareRepository, session: Session): Promise<
   return { name: user?.name ?? ROLE_LABELS[session.role], label: ROLE_LABELS[session.role] };
 }
 
+/** Initials on the logo's blue-to-green gradient. */
+function AccountAvatar({ name }: { name: string }) {
+  return (
+    <span
+      aria-hidden
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-leaf-500 text-sm font-bold text-white ring-2 ring-white shadow-sm"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+/** Blue-to-green strip, as in the logo. */
+function BrandStrip({ className }: { className?: string }) {
+  return <div aria-hidden className={`h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-leaf-500 ${className ?? ""}`} />;
+}
+
 export async function AppShell({ children }: { children: ReactNode }) {
   const session = await getSession();
   const repo = getRepository();
@@ -43,51 +62,64 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
-          <Link href="/" className="flex items-center gap-2 rounded-lg font-extrabold tracking-tight text-ink">
-            <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-b from-brand-500 to-brand-700 text-white">
-              <HeartPulse aria-hidden className="size-5" />
-            </span>
-            <span className="text-lg">
-              HealNest <span className="text-brand-600">Bharat</span>
+      <header className="sticky top-0 z-40 bg-white/95 shadow-[0_1px_0_var(--color-line),0_10px_30px_-24px_rgb(13_82_184/0.5)] backdrop-blur supports-[backdrop-filter]:bg-white/85">
+        <BrandStrip />
+        <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center gap-4 px-4 sm:px-6">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5 rounded-xl">
+            <BrandMark className="h-11 sm:h-12" />
+            <span className="leading-none">
+              <Wordmark className="block text-lg sm:text-xl" />
+              <span className="mt-1 hidden text-[11px] font-semibold tracking-wide text-ink-muted sm:block">
+                Verified care at your doorstep
+              </span>
             </span>
           </Link>
 
-          <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
-            <NavLinks items={nav} variant="desktop" />
+          <nav aria-label="Main" className="hidden min-w-0 flex-1 justify-center lg:flex">
+            <div className="flex items-center gap-0.5 rounded-full bg-brand-50/80 p-1 ring-1 ring-brand-100">
+              <NavLinks items={nav} variant="desktop" />
+            </div>
           </nav>
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
             {account ? (
-              <div className="hidden items-center gap-3 sm:flex" data-testid="account">
-                <div className="text-right leading-tight">
-                  <p className="text-sm font-semibold text-ink">{account.name}</p>
-                  <p className="text-xs text-ink-muted">{account.label}</p>
+              <div className="hidden items-center gap-2.5 sm:flex" data-testid="account">
+                <AccountAvatar name={account.name} />
+                {/* Name shows where there is room: tablets (no desktop nav yet) and wide desktops. */}
+                <div className="hidden leading-tight md:block lg:hidden xl:block">
+                  <p className="max-w-40 truncate text-sm font-semibold text-ink">{account.name}</p>
+                  <p className="max-w-40 truncate text-xs text-ink-muted">{account.label}</p>
                 </div>
-                <LogoutButton />
+                <LogoutButton compact />
               </div>
             ) : (
               <ButtonLink href="/login" size="sm" className="px-5" data-testid="login-link">
                 Log in
               </ButtonLink>
             )}
-            <details className="relative lg:hidden">
+            <details className="group relative lg:hidden">
               <summary
-                className="grid size-10 cursor-pointer list-none place-items-center rounded-lg border border-line [&::-webkit-details-marker]:hidden"
+                className="grid size-10 cursor-pointer list-none place-items-center rounded-xl border border-line bg-white text-brand-800 transition-colors hover:bg-brand-50 [&::-webkit-details-marker]:hidden"
                 aria-label="Open menu"
               >
-                <Menu aria-hidden className="size-5" />
+                <Menu aria-hidden className="size-5 group-open:hidden" />
+                <X aria-hidden className="hidden size-5 group-open:block" />
               </summary>
-              <div className="absolute right-0 mt-2 w-64 rounded-xl border border-line bg-white p-2 shadow-lg">
-                <nav aria-label="Mobile">
+              <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-2xl border border-line bg-white shadow-xl">
+                <BrandStrip />
+                <nav aria-label="Mobile" className="p-2">
                   <NavLinks items={nav} variant="mobile" />
                 </nav>
                 {account && (
-                  <div className="mt-2 border-t border-line px-3 pt-3 pb-1 sm:hidden">
-                    <p className="text-sm font-semibold text-ink">{account.name}</p>
-                    <p className="text-xs text-ink-muted">{account.label}</p>
-                    <LogoutButton className="mt-2 w-full" />
+                  <div className="border-t border-line p-3 sm:hidden">
+                    <div className="flex items-center gap-2.5">
+                      <AccountAvatar name={account.name} />
+                      <div className="min-w-0 leading-tight">
+                        <p className="truncate text-sm font-semibold text-ink">{account.name}</p>
+                        <p className="truncate text-xs text-ink-muted">{account.label}</p>
+                      </div>
+                    </div>
+                    <LogoutButton className="mt-3 w-full" />
                   </div>
                 )}
               </div>
@@ -100,21 +132,28 @@ export async function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t border-line bg-white">
-        <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 text-sm text-ink-muted sm:px-6 md:grid-cols-2">
+      <footer className="bg-brand-900 text-brand-100">
+        <BrandStrip />
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 text-sm sm:px-6 md:grid-cols-2">
           <div>
-            <p className="font-bold text-ink">HealNest Bharat</p>
-            <p className="mt-1">
+            <p className="flex items-center gap-3">
+              <span className="grid size-12 place-items-center rounded-2xl bg-white p-1.5 shadow-sm">
+                <BrandMark className="h-full" />
+              </span>
+              <Wordmark tone="light" className="text-lg" />
+            </p>
+            <p className="mt-3 max-w-xl text-brand-100/90">
               A marketplace for home-visit care services. We do not provide diagnosis, medical advice or emergency care.
-              For emergencies, dial <a className="font-semibold underline" href="tel:112">112</a>.
+              For emergencies, dial <a className="font-semibold text-white underline" href="tel:112">112</a>.
             </p>
           </div>
-          <div className="md:text-right">
+          <div className="text-brand-100/80 md:text-right">
             <p>
               MVP demo — providers, reviews and registration numbers are fictional. No real payments are taken.
             </p>
             <p className="mt-1">
-              Data source: <span className="font-semibold">{repo.kind === "supabase" ? "Supabase" : "In-memory demo data"}</span>
+              Data source:{" "}
+              <span className="font-semibold text-white">{repo.kind === "supabase" ? "Supabase" : "In-memory demo data"}</span>
             </p>
           </div>
         </div>

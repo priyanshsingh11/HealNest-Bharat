@@ -1,12 +1,28 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { notFound } from "@/lib/errors";
-import type { Booking, CategoryId, PlatformConfig, SlotStatus } from "@/types";
+import { conflict, notFound } from "@/lib/errors";
+import {
+  CATEGORY_IDS,
+  type Booking,
+  type CategoryId,
+  type PlatformConfig,
+  type ProviderProfile,
+  type Review,
+  type Service,
+  type SlotStatus,
+  type User,
+  type VerificationApplication,
+} from "@/types";
 import {
   fromConfigPatch,
   fromLineItem,
+  fromProvider,
   fromQuote,
+  fromReview,
+  fromService,
   fromSlot,
   fromStatusEvent,
+  fromUser,
+  fromVerification,
   toAuditLog,
   toBooking,
   toCategory,
@@ -17,6 +33,7 @@ import {
   toService,
   toSlot,
   toUser,
+  toVerification,
   type AuditLogRow,
   type BookingRow,
   type CategoryRow,
@@ -27,6 +44,7 @@ import {
   type ServiceRow,
   type SlotRow,
   type UserRow,
+  type VerificationRow,
 } from "./supabase-mappers";
 import type {
   BookingFilter,
@@ -38,9 +56,21 @@ import type {
   ProviderPatch,
   ServicePatch,
   SlotFilter,
+  UserFilter,
+  VerificationFilter,
+  VerificationPatch,
 } from "./types";
 
 const BOOKING_SELECT = "*, addresses(*), quotes(*, quote_line_items(*)), booking_status_events(*)";
+
+/** Compare-and-swap retries for slot place counting before giving up. */
+const SLOT_CAS_ATTEMPTS = 3;
+
+/**
+ * Rows for categories the app no longer offers (e.g. doctors in a database that hasn't run the
+ * remove_doctors migration yet) are skipped, so the pages never see a category they can't render.
+ */
+const isKnownCategory = (id: string) => (CATEGORY_IDS as readonly string[]).includes(id);
 
 /** Unwraps a Supabase response, throwing on error. Callers cast the untyped data to the expected row shape. */
 function check(result: { data: unknown; error: { message: string } | null }, context: string): unknown {
@@ -62,10 +92,25 @@ export class SupabaseRepository implements CareRepository {
     return row ? toUser(row as UserRow) : null;
   }
 
+  async listUsers(filter: UserFilter = {}) {
+    let query = this.db.from("app_users").select("*").order("created_at").order("id");
+    if (filter.role) query = query.eq("role", filter.role);
+    return (check(await query, "listUsers") as UserRow[]).map(toUser);
+  }
+
+  async createUser(user: User) {
+    const result = await this.db.from("app_users").insert(fromUser(user)).select("*").single();
+    if (result.error?.code === "23505") throw conflict("That account already exists.");
+    return toUser(check(result, "createUser") as UserRow);
+  }
+
   async listCategories() {
     const rows = check(await this.db.from("categories").select("*").order("id"), "listCategories");
-    const order = ["nurse", "doctor", "babysitter", "caregiver"];
-    return (rows as CategoryRow[]).map(toCategory).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    const order = ["nurse", "babysitter", "caregiver"];
+    return (rows as CategoryRow[])
+      .filter((r) => isKnownCategory(r.id))
+      .map(toCategory)
+      .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }
 
   async updateCategory(id: CategoryId, patch: CategoryPatch) {
@@ -80,12 +125,12 @@ export class SupabaseRepository implements CareRepository {
   async listProviders(filter?: { category?: CategoryId }) {
     let query = this.db.from("provider_profiles").select("*").order("id");
     if (filter?.category) query = query.eq("category", filter.category);
-    return (check(await query, "listProviders") as ProviderRow[]).map(toProvider);
+    return (check(await query, "listProviders") as ProviderRow[]).filter((r) => isKnownCategory(r.category)).map(toProvider);
   }
 
   async getProvider(id: string) {
-    const row = check(await this.db.from("provider_profiles").select("*").eq("id", id).maybeSingle(), "getProvider");
-    return row ? toProvider(row as ProviderRow) : null;
+    const row = check(await this.db.from("provider_profiles").select("*").eq("id", id).maybeSingle(), "getProvider") as ProviderRow | null;
+    return row && isKnownCategory(row.category) ? toProvider(row) : null;
   }
 
   async updateProvider(id: string, patch: ProviderPatch) {
@@ -93,6 +138,13 @@ export class SupabaseRepository implements CareRepository {
     if (patch.verificationStatus !== undefined) update.verification_status = patch.verificationStatus;
     if (patch.serviceRadiusKm !== undefined) update.service_radius_km = patch.serviceRadiusKm;
     if (patch.active !== undefined) update.active = patch.active;
+    if (patch.name !== undefined) update.name = patch.name;
+    if (patch.photoUrl !== undefined) update.photo_url = patch.photoUrl;
+    if (patch.languages !== undefined) update.languages = patch.languages;
+    if (patch.yearsExperience !== undefined) update.years_experience = patch.yearsExperience;
+    if (patch.credentials !== undefined) update.credentials = patch.credentials;
+    if (patch.rating !== undefined) update.rating = patch.rating;
+    if (patch.reviewCount !== undefined) update.review_count = patch.reviewCount;
     const row = check(
       await this.db.from("provider_profiles").update(update).eq("id", id).select("*").maybeSingle(),
       "updateProvider",
@@ -101,11 +153,26 @@ export class SupabaseRepository implements CareRepository {
     return toProvider(row as ProviderRow);
   }
 
+  async createProvider(provider: ProviderProfile, services: Service[]) {
+    const result = await this.db.from("provider_profiles").insert(fromProvider(provider)).select("*").single();
+    if (result.error?.code === "23505") throw conflict("That provider profile already exists.");
+    const row = check(result, "createProvider") as ProviderRow;
+    if (services.length) {
+      const inserted = await this.db.from("services").insert(services.map(fromService));
+      if (inserted.error) {
+        // Best-effort compensation, as in createBooking.
+        await this.db.from("provider_profiles").delete().eq("id", provider.id);
+        check(inserted, "createProvider.services");
+      }
+    }
+    return toProvider(row);
+  }
+
   async listServices(filter?: { providerId?: string; providerIds?: string[] }) {
     let query = this.db.from("services").select("*").order("id");
     if (filter?.providerId) query = query.eq("provider_id", filter.providerId);
     if (filter?.providerIds) query = query.in("provider_id", filter.providerIds);
-    return (check(await query, "listServices") as ServiceRow[]).map(toService);
+    return (check(await query, "listServices") as ServiceRow[]).filter((r) => isKnownCategory(r.category)).map(toService);
   }
 
   async getService(id: string) {
@@ -151,19 +218,43 @@ export class SupabaseRepository implements CareRepository {
   }
 
   async reserveSlot(id: string) {
-    // Conditional update: only one concurrent request can flip an open slot to booked.
-    const rows = check(
-      await this.db.from("availability_slots").update({ status: "booked" }).eq("id", id).eq("status", "open").select("id"),
-      "reserveSlot",
-    );
-    return (rows as unknown[]).length === 1;
+    // Compare-and-swap on booked_count: the update only applies if nobody took a place since we read it,
+    // so concurrent requests can never overfill a slot (a CHECK constraint also enforces booked_count <= capacity).
+    for (let attempt = 0; attempt < SLOT_CAS_ATTEMPTS; attempt++) {
+      const slot = await this.getSlot(id);
+      if (!slot || slot.status !== "open" || slot.bookedCount >= slot.capacity) return false;
+      const bookedCount = slot.bookedCount + 1;
+      const rows = check(
+        await this.db
+          .from("availability_slots")
+          .update({ booked_count: bookedCount, status: bookedCount >= slot.capacity ? "booked" : "open" })
+          .eq("id", id)
+          .eq("status", "open")
+          .eq("booked_count", slot.bookedCount)
+          .select("id"),
+        "reserveSlot",
+      );
+      if ((rows as unknown[]).length === 1) return true;
+    }
+    return false;
   }
 
   async releaseSlot(id: string) {
-    check(
-      await this.db.from("availability_slots").update({ status: "open" }).eq("id", id).eq("status", "booked"),
-      "releaseSlot",
-    );
+    for (let attempt = 0; attempt < SLOT_CAS_ATTEMPTS; attempt++) {
+      const slot = await this.getSlot(id);
+      if (!slot || slot.bookedCount === 0) return;
+      const rows = check(
+        await this.db
+          .from("availability_slots")
+          .update({ booked_count: slot.bookedCount - 1, status: slot.status === "booked" ? "open" : slot.status })
+          .eq("id", id)
+          .eq("booked_count", slot.bookedCount)
+          .select("id"),
+        "releaseSlot",
+      );
+      if ((rows as unknown[]).length === 1) return;
+    }
+    throw new Error(`Could not release a place in slot ${id}`);
   }
 
   async listReviews(providerId: string) {
@@ -172,6 +263,60 @@ export class SupabaseRepository implements CareRepository {
       "listReviews",
     );
     return (rows as ReviewRow[]).map(toReview);
+  }
+
+  async createReview(review: Review) {
+    const result = await this.db.from("reviews").insert(fromReview(review)).select("*").single();
+    // 23505 = unique_violation on reviews_booking_unique: one review per booking.
+    if (result.error?.code === "23505") throw conflict("This visit has already been reviewed.");
+    return toReview(check(result, "createReview") as ReviewRow);
+  }
+
+  async getReviewForBooking(bookingId: string) {
+    const row = check(
+      await this.db.from("reviews").select("*").eq("booking_id", bookingId).maybeSingle(),
+      "getReviewForBooking",
+    );
+    return row ? toReview(row as ReviewRow) : null;
+  }
+
+  async listVerificationApplications(filter: VerificationFilter = {}) {
+    let query = this.db.from("verification_applications").select("*").order("submitted_at", { ascending: false });
+    if (filter.providerId) query = query.eq("provider_id", filter.providerId);
+    if (filter.status) query = query.eq("status", filter.status);
+    return (check(await query, "listVerificationApplications") as VerificationRow[])
+      .filter((r) => isKnownCategory(r.category))
+      .map(toVerification);
+  }
+
+  async getVerificationApplication(id: string) {
+    const row = check(
+      await this.db.from("verification_applications").select("*").eq("id", id).maybeSingle(),
+      "getVerificationApplication",
+    );
+    return row ? toVerification(row as VerificationRow) : null;
+  }
+
+  async createVerificationApplication(application: VerificationApplication) {
+    const row = check(
+      await this.db.from("verification_applications").insert(fromVerification(application)).select("*").single(),
+      "createVerificationApplication",
+    );
+    return toVerification(row as VerificationRow);
+  }
+
+  async updateVerificationApplication(id: string, patch: VerificationPatch) {
+    const row = check(
+      await this.db
+        .from("verification_applications")
+        .update({ status: patch.status, reviewed_at: patch.reviewedAt, reviewer_note: patch.reviewerNote })
+        .eq("id", id)
+        .select("*")
+        .maybeSingle(),
+      "updateVerificationApplication",
+    );
+    if (!row) throw notFound("Verification application");
+    return toVerification(row as VerificationRow);
   }
 
   async listPricingRules() {

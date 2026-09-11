@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmergencyBanner } from "@/components/emergency-banner";
 import { ProviderProfileView } from "@/components/provider-profile";
+import { isCategoryActive } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { roundedDistanceKm } from "@/lib/geo";
 import { flattenParams, locationFromParams, toQuery } from "@/lib/location";
@@ -24,7 +25,7 @@ export default async function ProviderPage({ params, searchParams }: PageProps) 
   const repo = getRepository();
 
   const provider = await repo.getProvider(providerId);
-  if (!provider || !provider.active) notFound();
+  if (!provider || !provider.active || !(await isCategoryActive(repo, provider.category))) notFound();
 
   const [services, slots, reviews, config] = await Promise.all([
     repo.listServices({ providerId }),

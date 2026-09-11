@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createSeedData, DEMO_USER_ID } from "@/lib/mock-data";
 import { validateQuoteInvariants } from "@/lib/pricing";
 import { MemoryRepository } from "@/lib/repository/memory";
+import { DEMO_USER_ID } from "@/lib/seed";
 import { updatePricingRule, updateProvider } from "@/lib/services/admin";
 import { createBooking, transitionBooking } from "@/lib/services/bookings";
 import { searchProviders } from "@/lib/services/discovery";
 import { buildSession } from "@/lib/session";
 import type { BookingRequest } from "@/lib/validations";
+import { createTestData } from "./fixtures";
 
 const NOW = new Date("2026-09-10T06:00:00Z"); // 11:30 IST
 const customer = buildSession("user", undefined);
@@ -18,7 +19,7 @@ const connaughtPlace = { lat: 28.6315, lng: 77.2167 };
 let repo: MemoryRepository;
 
 beforeEach(() => {
-  repo = new MemoryRepository(createSeedData(NOW));
+  repo = new MemoryRepository(createTestData(NOW));
 });
 
 async function firstOpenSlot(providerId: string) {
@@ -69,8 +70,8 @@ describe("searchProviders", () => {
   });
 
   it("applies the verified-only filter", async () => {
-    const all = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "doctor" }, NOW);
-    const verified = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "doctor", verifiedOnly: true }, NOW);
+    const all = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "phlebotomist" }, NOW);
+    const verified = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "phlebotomist", verifiedOnly: true }, NOW);
     expect(all.results.some((r) => r.provider.verificationStatus !== "verified")).toBe(true);
     expect(verified.results.every((r) => r.provider.verificationStatus === "verified")).toBe(true);
   });

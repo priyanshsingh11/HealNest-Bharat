@@ -40,9 +40,29 @@ Only providers whose service radius covers the location are returned.
 
 `PATCH /api/providers/:providerId` — admin: `{ verificationStatus?, active? }`; provider (own profile): `{ serviceRadiusKm }`.
 
-`POST /api/providers/:providerId/slots` — provider: `{ startAt: ISO-8601 with offset, durationMinutes?: 30–600 }`. Rejects past or overlapping slots.
+`POST /api/providers/:providerId/slots` — provider: the same window on one or more days →  `201 { slots }`.
+
+```json
+{ "dates": ["2026-09-12", "2026-09-13"], "startTime": "10:00", "durationMinutes": 120 }
+```
+
+Each slot takes one booking. Rejects past, overlapping or more-than-60-days-ahead windows. A slot stays `open` until it is booked, then becomes `booked`.
 
 `PATCH /api/slots/:slotId` — provider: `{ status: "open" | "blocked" }`. Booked slots cannot be changed.
+
+`GET /api/providers/:providerId/calendar` — provider (own) or admin: upcoming appointments as an `.ics` file with a 30-minute reminder per event. Patient addresses are not included.
+
+## Caretaker verification
+
+`POST /api/providers/:providerId/verification` — provider (own profile) → `201 { application }`. Identity and contact, a profile photo
+(JPEG/PNG/WebP data URL, ≤ 200 KB), languages, experience, government ID type and **last 4 characters only**, qualifications, and documents
+(file metadata only in this demo). Nurses and physiotherapists must add council registration and qualifications; nannies, caregivers and
+lab technicians a police verification reference. A new submission replaces one still under review.
+
+`GET /api/providers/:providerId/verification` → `{ applications }` (newest first).
+
+`PATCH /api/admin/verification/:applicationId` — admin: `{ decision: "approve" | "reject", note }` (note required to reject).
+Approval marks the provider verified (blue tick) and applies the verified name, photo, languages and credentials.
 
 ## Quotes
 
@@ -83,8 +103,11 @@ Invariants (enforced in code, in tests, and by database `CHECK` constraints):
   "consentToShareLocation": true, "acceptPriceBreakdown": true }
 ```
 
-→ `201 { booking }`. The server re-validates the provider (active, **verified**), service, slot (open, future), service radius
-and consent, recalculates the quote, stores it as an immutable price snapshot, and atomically reserves the slot. Client prices are ignored.
+Every booking is a home visit, so the address, coordinates and location consent are always required.
+
+→ `201 { booking }` with status `REQUESTED`. The server re-validates the provider (active, **verified**), service, slot (open, future),
+service radius and consent, recalculates the quote, stores it as an immutable price snapshot, and atomically books the slot.
+Client prices are ignored.
 
 `GET /api/bookings` → bookings visible to the session (own / provider's / all for admin).
 
@@ -98,7 +121,11 @@ REQUESTED → DECLINED
 REQUESTED / ACCEPTED → CANCELLED
 ```
 
-Customers may only cancel. Providers (own bookings) and admins run the visit. Cancel/decline releases the slot.
+Customers may only cancel. Providers (own bookings) and admins run the visit. Cancel/decline reopens the slot.
+
+`POST /api/bookings/:bookingId/review` — customer, own `COMPLETED` booking, once → `201 { review }`.
+`{ rating: 1–5, aspects?: { punctuality?, communication?, courtesy?, value?: 1–5 }, wouldRecommend?: boolean | null, comment?: ≤ 500 chars }`.
+The provider's average rating and review count update immediately; the review shows as a verified visit.
 
 `POST /api/bookings/:bookingId/simulate` — demo only: advances one step as the provider; logged as simulated.
 
@@ -109,4 +136,4 @@ Customers may only cancel. Providers (own bookings) and admins run the visit. Ca
 - `PATCH /api/admin/categories/:categoryId` — `{ active?, description? }`.
 - `PATCH /api/admin/services/:serviceId` — `{ basePriceMinor?, active? }`.
 
-All admin, verification, slot, quote-snapshot and booking-status changes are written to the audit log.
+All admin, verification, slot, review, quote-snapshot and booking-status changes are written to the audit log.

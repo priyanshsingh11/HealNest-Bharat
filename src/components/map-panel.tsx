@@ -5,14 +5,15 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import type { MapViewProps } from "@/components/map-view";
 
-const MapView = dynamic(() => import("@/components/map-view"), {
+// Mappls when a key is configured; otherwise Leaflet + OpenStreetMap (also used in keyless CI).
+const MapView = dynamic(() => (process.env.NEXT_PUBLIC_MAPPLS_KEY ? import("@/components/mappls-map-view") : import("@/components/map-view")), {
   ssr: false,
   loading: () => <MapPlaceholder text="Loading map…" />,
 });
 
 function MapPlaceholder({ text }: { text: string }) {
   return (
-    <div className="grid h-80 place-items-center rounded-xl border border-dashed border-line bg-slate-50 text-sm text-ink-muted">{text}</div>
+    <div className="grid h-80 place-items-center rounded-xl border border-dashed border-line bg-canvas text-sm text-ink-muted">{text}</div>
   );
 }
 
@@ -27,7 +28,7 @@ export function MapPanel({ collapsible = false, caption, ...props }: MapViewProp
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-brand-50"
         >
           <MapIcon aria-hidden className="size-4" />
           {open ? "Hide map" : "Show map"}

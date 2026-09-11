@@ -1,29 +1,74 @@
 @import "tailwindcss";
 
-/* Soft, trustworthy healthcare palette: bright blue primary, green verified, amber estimates. */
+/*
+ * Palette taken from the logo (public/images/logo.png):
+ *   brand = the royal blue of the roof and caring hand — primary actions, links.
+ *   leaf  = the green of the leaves and heart — verified, success, secondary accents.
+ * Amber stays for estimates.
+ */
 @theme {
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans",
     "Helvetica Neue", Arial, sans-serif;
 
-  --color-canvas: #f3f6fa;
+  --color-canvas: #f3f7fb;
   --color-surface: #ffffff;
-  --color-ink: #1f2a37;
-  --color-ink-muted: #556270;
-  --color-line: #dfe6ef;
+  --color-ink: #16263b;
+  --color-ink-muted: #506176;
+  --color-line: #dce5ef;
 
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe7fe;
-  --color-brand-200: #bfd4fd;
-  --color-brand-300: #93b6fa;
-  --color-brand-500: #4a86f0;
-  --color-brand-600: #3570e6;
-  --color-brand-700: #2a5fd3;
-  --color-brand-800: #254fad;
-  --color-brand-900: #233f84;
+  --color-brand-50: #ecf5ff;
+  --color-brand-100: #d6e9ff;
+  --color-brand-200: #b0d4fe;
+  --color-brand-300: #7cb6fb;
+  --color-brand-400: #4b9af2;
+  --color-brand-500: #1d7fe8;
+  --color-brand-600: #1266d6;
+  --color-brand-700: #0d52b8;
+  --color-brand-800: #0f4495;
+  --color-brand-900: #133a78;
+  --color-brand-950: #0c2550;
 
-  --color-sea-50: #eef6ff;
-  --color-sea-600: #1d64c8;
-  --color-sea-700: #194f9e;
+  /* Existing `sky-*` utilities (medical badges, info notes, avatar tiles) take the logo blue. */
+  --color-sky-50: var(--color-brand-50);
+  --color-sky-100: var(--color-brand-100);
+  --color-sky-200: var(--color-brand-200);
+  --color-sky-300: var(--color-brand-300);
+  --color-sky-400: var(--color-brand-400);
+  --color-sky-500: var(--color-brand-500);
+  --color-sky-600: var(--color-brand-600);
+  --color-sky-700: var(--color-brand-700);
+  --color-sky-800: var(--color-brand-800);
+  --color-sky-900: var(--color-brand-900);
+  --color-sky-950: var(--color-brand-950);
+
+  --color-leaf-50: #f1faea;
+  --color-leaf-100: #dff3cf;
+  --color-leaf-200: #c0e7a0;
+  --color-leaf-300: #97d566;
+  --color-leaf-400: #6cc02f;
+  --color-leaf-500: #4caf24;
+  --color-leaf-600: #3a931c;
+  --color-leaf-700: #2f7519;
+  --color-leaf-800: #295c19;
+  --color-leaf-900: #234d18;
+  --color-leaf-950: #0f2a08;
+
+  /* Existing `emerald-*` utilities (verified badges, success buttons, calendar) take the logo green. */
+  --color-emerald-50: var(--color-leaf-50);
+  --color-emerald-100: var(--color-leaf-100);
+  --color-emerald-200: var(--color-leaf-200);
+  --color-emerald-300: var(--color-leaf-300);
+  --color-emerald-400: var(--color-leaf-400);
+  --color-emerald-500: var(--color-leaf-500);
+  --color-emerald-600: var(--color-leaf-600);
+  --color-emerald-700: var(--color-leaf-700);
+  --color-emerald-800: var(--color-leaf-800);
+  --color-emerald-900: var(--color-leaf-900);
+  --color-emerald-950: var(--color-leaf-950);
+
+  --color-sea-50: #ecf5ff;
+  --color-sea-600: #1266d6;
+  --color-sea-700: #0d52b8;
 }
 
 @layer base {
@@ -67,18 +112,58 @@
     top: 1rem;
   }
 
-  /* Soft blue hero wash: a lighter glow behind the centre, fading to pale grey-blue at the edges. */
+  /* Soft blue hero wash with a hint of leaf green, like the logo's leaf sweeping round the house. */
   .hero-surface {
     background:
-      radial-gradient(55% 65% at 50% 80%, #d2e0f4 0%, transparent 70%),
-      linear-gradient(180deg, #f0f4f9 0%, #e2eaf5 100%);
+      radial-gradient(40% 55% at 8% 95%, rgb(108 192 47 / 0.16) 0%, transparent 70%),
+      radial-gradient(55% 65% at 50% 80%, #cfe3fa 0%, transparent 70%),
+      linear-gradient(180deg, #f0f6fc 0%, #dfeaf7 100%);
+  }
+
+  /* Logo-style blue-to-green text, for single highlighted words in headings. */
+  .text-brand-gradient {
+    background: linear-gradient(90deg, var(--color-brand-600) 0%, var(--color-brand-500) 45%, var(--color-leaf-600) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   /* Faint dotted texture, faded out towards the edges. */
   .dot-grid {
-    background-image: radial-gradient(rgb(42 95 211 / 0.16) 1.2px, transparent 1.2px);
+    background-image: radial-gradient(rgb(13 82 184 / 0.16) 1.2px, transparent 1.2px);
     background-size: 14px 14px;
     mask-image: radial-gradient(circle at 50% 70%, black 25%, transparent 65%);
+  }
+
+  /* Endless sideways strip. The track holds the list twice, so sliding it by half loops seamlessly. */
+  .marquee {
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 40s linear infinite;
+  }
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track {
+    animation-play-state: paused;
+  }
+  /* Without motion, the strip stands still; page.tsx wraps and centres one copy with motion-reduce: classes. */
+  @media (prefers-reduced-motion: reduce) {
+    .marquee {
+      mask-image: none;
+    }
+    .marquee-track {
+      width: auto;
+      animation: none !important;
+    }
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
   }
 }
 

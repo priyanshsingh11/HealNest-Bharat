@@ -4,14 +4,14 @@ import { cn } from "@/lib/cn";
 type Tone = "neutral" | "brand" | "success" | "warning" | "danger" | "medical" | "childcare" | "care";
 
 const TONES: Record<Tone, string> = {
-  neutral: "bg-slate-100 text-slate-700 ring-slate-200",
+  neutral: "bg-canvas text-ink ring-line",
   brand: "bg-brand-50 text-brand-800 ring-brand-200",
   success: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   warning: "bg-amber-50 text-amber-900 ring-amber-200",
   danger: "bg-rose-50 text-rose-800 ring-rose-200",
   medical: "bg-sky-50 text-sky-900 ring-sky-200",
-  childcare: "bg-fuchsia-50 text-fuchsia-900 ring-fuchsia-200",
-  care: "bg-violet-50 text-violet-900 ring-violet-200",
+  childcare: "bg-leaf-50 text-leaf-900 ring-leaf-200",
+  care: "bg-leaf-50 text-leaf-900 ring-leaf-200",
 };
 
 export function Badge({ tone = "neutral", children, className }: { tone?: Tone; children: ReactNode; className?: string }) {

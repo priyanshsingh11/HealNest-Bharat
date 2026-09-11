@@ -1,5 +1,6 @@
 import { handle, LIMITS, readJson } from "@/lib/api";
 import { getSession } from "@/lib/auth";
+import { isCategoryActive } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { notFound } from "@/lib/errors";
 import { updateProvider } from "@/lib/services/admin";
@@ -12,7 +13,7 @@ export async function GET(request: Request, { params }: Context) {
     const { providerId } = await params;
     const repo = getRepository();
     const provider = await repo.getProvider(providerId);
-    if (!provider || !provider.active) throw notFound("Provider");
+    if (!provider || !provider.active || !(await isCategoryActive(repo, provider.category))) throw notFound("Provider");
     const [services, slots, reviews] = await Promise.all([
       repo.listServices({ providerId }),
       repo.listSlots({ providerId, from: new Date().toISOString(), status: "open" }),

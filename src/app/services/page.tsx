@@ -40,13 +40,13 @@ export default async function ServicesPage() {
           <p className="text-sm font-bold uppercase tracking-wider text-brand-700">Our services</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Care at home, done properly.</h1>
           <p className="mt-3 max-w-3xl text-lg text-ink-muted">
-            Eight home services from verified nurses, physiotherapists, phlebotomists, doctors and caregivers. Prices below are
+            Eight home services from verified nurses, physiotherapists, phlebotomists and caregivers. Prices below are
             starting visit fees. Your full itemised quote appears before you confirm.
           </p>
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 pt-8 pb-12 sm:px-6">
         <ul className="grid gap-4 md:grid-cols-2">
           {CARE_SERVICES.map((service) => {
             const from = startingPrice(service.id);
@@ -85,7 +85,7 @@ export default async function ServicesPage() {
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
                   <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-ink-muted">
                     <span className="uppercase tracking-wide">Provided by</span>
-                    {service.providedBy.map((category) => (
+                    {service.providedBy.filter((category) => activeCategories.has(category)).map((category) => (
                       <span key={category} className="inline-flex items-center gap-1 text-ink">
                         <CategoryIcon category={category} className="size-3.5" />
                         {categoryName(category)}

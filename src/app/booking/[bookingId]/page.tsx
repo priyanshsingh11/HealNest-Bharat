@@ -7,6 +7,8 @@ import { BookingStatusTimeline, StatusBadge } from "@/components/booking-status"
 import { KindBadge } from "@/components/category-meta";
 import { EmergencyBanner } from "@/components/emergency-banner";
 import { QuoteBreakdown } from "@/components/quote-breakdown";
+import { ReviewForm } from "@/components/reviews/review-form";
+import { Stars } from "@/components/reviews/stars";
 import { Card } from "@/components/ui/card";
 import { getSession } from "@/lib/auth";
 import { isCancellable } from "@/lib/booking-status";
@@ -29,7 +31,11 @@ export default async function BookingPage({ params, searchParams }: PageProps) {
   const repo = getRepository();
   const [booking, session, config] = await Promise.all([repo.getBooking(bookingId), getSession(), repo.getPlatformConfig()]);
   if (!booking || !canViewBooking(session, booking)) notFound();
-  const provider = await repo.getProvider(booking.providerId);
+  const [provider, review] = await Promise.all([
+    repo.getProvider(booking.providerId),
+    booking.status === "COMPLETED" ? repo.getReviewForBooking(booking.id) : Promise.resolve(null),
+  ]);
+  const canReview = session.role === "user" && booking.userId === session.userId && booking.status === "COMPLETED";
 
   return (
     <>
@@ -48,22 +54,24 @@ export default async function BookingPage({ params, searchParams }: PageProps) {
         )}
 
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Booking {booking.id}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{booking.serviceName}</h1>
           <span data-testid="booking-status">
             <StatusBadge status={booking.status} />
           </span>
         </div>
+        <p className="mt-1 text-sm text-ink-muted">Booking {booking.id}</p>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_24rem]">
           <div className="min-w-0 space-y-6">
             <Card className="p-6">
-              <h2 className="text-lg font-bold">{booking.serviceName}</h2>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-                with{" "}
+              <h2 className="text-lg font-bold">Visit details</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-muted">
+                <span>with</span>
                 <Link href={`/providers/${booking.providerId}`} className="font-semibold text-brand-700 hover:underline">
                   {booking.providerName}
                 </Link>
-                · {categoryName(booking.category)}
+                <span aria-hidden>·</span>
+                <span>{categoryName(booking.category)}</span>
                 <KindBadge category={booking.category} />
               </div>
               <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
@@ -112,6 +120,36 @@ export default async function BookingPage({ params, searchParams }: PageProps) {
                 />
               </div>
             </Card>
+
+            {canReview && (
+              <Card className="scroll-mt-24 p-6" id="review">
+                {review ? (
+                  <>
+                    <h2 className="text-lg font-bold">Your review</h2>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Stars value={review.rating} />
+                      <span className="text-sm font-semibold">{review.rating}/5</span>
+                    </div>
+                    {review.comment && <p className="mt-2 text-sm text-ink">{review.comment}</p>}
+                    <p className="mt-2 text-xs text-ink-muted">
+                      Thank you! It appears on{" "}
+                      <Link href={`/providers/${booking.providerId}#reviews`} className="font-semibold text-brand-700 hover:underline">
+                        {booking.providerName}&apos;s profile
+                      </Link>{" "}
+                      as a verified visit.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold">Rate your visit</h2>
+                    <p className="mb-4 text-sm text-ink-muted">
+                      Your rating helps other families choose care, and helps {booking.providerName} improve.
+                    </p>
+                    <ReviewForm bookingId={booking.id} providerName={booking.providerName} />
+                  </>
+                )}
+              </Card>
+            )}
           </div>
 
           <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">

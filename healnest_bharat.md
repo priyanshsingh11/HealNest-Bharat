@@ -7,10 +7,10 @@ Build a responsive web application that helps a user discover and request nearby
 Initial provider categories:
 
 - Home nurses
-- Doctors for non-emergency home consultations
+- Physiotherapists
+- Phlebotomists (home lab collection)
 - Babysitters and nannies
 - Caregivers for elderly or disabled people
-- Optional later categories: physiotherapists, lab technicians, wound-care specialists
 
 The first release is a web-only MVP built with Next.js and TypeScript. Use mock data and a local database or seeded in-memory data so the application works without external API keys. Design the code so real authentication, payments, maps, notifications, and provider verification can be added later.
 
@@ -20,7 +20,7 @@ This is a care-services marketplace, not an emergency or diagnostic system.
 
 - Show an emergency banner on relevant screens: “For life-threatening emergencies, contact local emergency services.”
 - Do not provide diagnosis or medical treatment instructions.
-- Clearly distinguish doctors, nurses, babysitters, and non-medical caregivers.
+- Clearly distinguish medical providers (nurses, physiotherapists, phlebotomists), babysitters, and non-medical caregivers.
 - Display provider credentials, verification status, service radius, availability, reviews, and cancellation terms.
 - Require consent before sharing the user’s location with a provider.
 - Never silently charge a user. Show a complete price breakdown and require confirmation before booking.
@@ -34,7 +34,7 @@ This is a care-services marketplace, not an emergency or diagnostic system.
 
 1. User opens the homepage.
 2. User enters an address or uses browser geolocation.
-3. User selects a category: Nurse, Doctor, Babysitter/Nanny, or Caregiver.
+3. User selects a category: Nurse, Physiotherapist, Lab Collection, Babysitter/Nanny, or Caregiver.
 4. User sees nearby provider cards sorted by distance, availability, rating, and price.
 5. User can filter by service, availability, price range, distance, language, gender preference, and verified status.
 6. User opens a provider profile and reviews services, price, credentials, reviews, and availability.

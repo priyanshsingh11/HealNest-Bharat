@@ -7,6 +7,8 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   timeout: 60_000,
   fullyParallel: false,
+  // Every test shares one in-memory server, so parallel workers would race for the same slots.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
   use: {

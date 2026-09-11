@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowRight, Check, HeartHandshake, HeartPulse, UserRound, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check, HeartHandshake, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CategoryIcon, KIND_TILE, VerificationBadge } from "@/components/category-meta";
+import { CreateAccountForm } from "@/components/create-account-form";
 import { Button } from "@/components/ui/button";
 import { categoryKind, PROFESSION_LABELS } from "@/lib/categories";
 import { apiRequest } from "@/lib/client-api";
@@ -11,6 +12,9 @@ import { cn } from "@/lib/cn";
 import type { CategoryId, Role, VerificationStatus } from "@/types";
 
 export type AccountType = "customer" | "caretaker";
+type AccountMode = "existing" | "new";
+
+export type CustomerOption = { id: string; name: string; email: string };
 
 export type CaretakerOption = {
   id: string;
@@ -25,13 +29,13 @@ const ACCOUNT_TYPES: { value: AccountType; title: string; body: string; icon: Lu
   {
     value: "customer",
     title: "Customer",
-    body: "Book home nursing, doctor visits, physiotherapy, lab tests, nannies and more for yourself or your family.",
+    body: "Book home nursing, physiotherapy, lab tests, nannies, caregivers and more for yourself or your family.",
     icon: UserRound,
   },
   {
     value: "caretaker",
     title: "Caretaker",
-    body: "Doctors, nurses, nannies, caregivers, physiotherapists and lab technicians who provide care at home.",
+    body: "Nurses, nannies, caregivers, physiotherapists and lab technicians who provide care at home.",
     icon: HeartHandshake,
   },
 ];
@@ -42,8 +46,31 @@ const OPTION_CARD =
   "has-[:checked]:border-brand-700 has-[:checked]:bg-brand-50 has-[:checked]:ring-2 has-[:checked]:ring-brand-700/20 " +
   "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sea-600/40";
 
+/** Toggle between logging into an existing demo account and creating a new one. */
+function ModeSwitch({ mode, onChange }: { mode: AccountMode; onChange: (mode: AccountMode) => void }) {
+  return (
+    <div role="group" aria-label="Account" className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-canvas p-1 text-sm font-semibold ring-1 ring-line">
+      {(["existing", "new"] as const).map((value) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={mode === value}
+          onClick={() => onChange(value)}
+          className={cn(
+            "rounded-full px-3 py-2 whitespace-nowrap transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-600/40",
+            mode === value ? "bg-white text-ink shadow-sm" : "text-ink-muted hover:text-ink",
+          )}
+          data-testid={`account-mode-${value}`}
+        >
+          {value === "existing" ? "Existing account" : "New account"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 type Props = {
-  customerName: string;
+  customers: CustomerOption[];
   caretakers: CaretakerOption[];
   professions: CategoryId[];
   initialType: AccountType;
@@ -52,16 +79,19 @@ type Props = {
   enabled: boolean;
 };
 
-/** Mock login: choose customer or caretaker (then profession and profile). Swap for real auth later. */
-export function LoginForm({ customerName, caretakers, professions, initialType, next, enabled }: Props) {
+/** Mock login: choose customer or caretaker, then an existing demo account or create a new one. Swap for real auth later. */
+export function LoginForm({ customers, caretakers, professions, initialType, next, enabled }: Props) {
   const router = useRouter();
   const [type, setType] = useState<AccountType>(initialType);
+  const [mode, setMode] = useState<AccountMode>("existing");
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
   const [profession, setProfession] = useState<CategoryId>(professions[0]);
   const [providerId, setProviderId] = useState(() => caretakers.find((c) => c.category === professions[0])?.id ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const customer = customers.find((c) => c.id === customerId);
   const profiles = caretakers.filter((c) => c.category === profession);
   const selected = profiles.find((c) => c.id === providerId);
   const busy = !enabled || submitting || pending;
@@ -71,11 +101,11 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
     setProviderId(caretakers.find((c) => c.category === id)?.id ?? "");
   }
 
-  async function logIn(role: Role, destination: string, asProviderId?: string) {
+  async function logIn(role: Role, destination: string, account: { userId?: string; providerId?: string } = {}) {
     setError(null);
     setSubmitting(true);
     try {
-      await apiRequest("/api/session", "POST", { role, providerId: asProviderId });
+      await apiRequest("/api/session", "POST", { role, ...account });
       startTransition(() => {
         router.push(destination);
         router.refresh();
@@ -89,9 +119,6 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
   return (
     <div>
       <div className="text-center">
-        <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-brand-700 text-white">
-          <HeartPulse aria-hidden className="size-6" />
-        </span>
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-ink">Log in to HealNest Bharat</h1>
         <p className="mt-2 text-ink-muted">Tell us how you use HealNest so we can take you to the right place.</p>
       </div>
@@ -104,9 +131,10 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
 
       <fieldset className="mt-8">
         <legend className="mb-3 text-sm font-bold text-ink">I want to log in as</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* Side by side even on phones; the description is hidden there to keep the form above the fold. */}
+        <div className="grid grid-cols-2 gap-3">
           {ACCOUNT_TYPES.map(({ value, title, body, icon: Icon }) => (
-            <label key={value} className={cn(OPTION_CARD, "flex-col gap-2 p-5")}>
+            <label key={value} className={cn(OPTION_CARD, "flex-col gap-2 p-4 sm:p-5")}>
               <input
                 type="radio"
                 name="account-type"
@@ -122,8 +150,8 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
                 </span>
                 {type === value && <Check aria-hidden className="size-5 text-brand-700" />}
               </span>
-              <span className="mt-1 text-lg font-bold text-ink">{title}</span>
-              <span className="text-sm text-ink-muted">{body}</span>
+              <span className="mt-1 text-base font-bold text-ink sm:text-lg">{title}</span>
+              <span className="hidden text-sm text-ink-muted sm:block">{body}</span>
             </label>
           ))}
         </div>
@@ -136,18 +164,49 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
               Customer account
             </h2>
             <p className="mt-1 text-sm text-ink-muted">Find and book care, track your visits and see every price before you confirm.</p>
-            <div className="mt-4 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-              <span className="grid size-10 place-items-center rounded-full bg-brand-700 text-white">
-                <UserRound aria-hidden className="size-5" />
-              </span>
-              <div>
-                <p className="font-semibold text-ink">{customerName}</p>
-                <p className="text-xs text-ink-muted">Demo customer account</p>
-              </div>
-            </div>
-            <Button size="lg" className="mt-5 w-full" disabled={busy} onClick={() => logIn("user", next ?? "/")} data-testid="login-submit">
-              Log in as customer <ArrowRight aria-hidden className="size-4" />
-            </Button>
+            <ModeSwitch mode={mode} onChange={setMode} />
+
+            {mode === "new" ? (
+              <CreateAccountForm type="customer" profession={profession} next={next} enabled={enabled} />
+            ) : (
+              <>
+                <fieldset className="mt-4">
+                  <legend className="text-sm font-semibold text-ink">Choose your account</legend>
+                  <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto p-0.5">
+                    {customers.map((c) => (
+                      <li key={c.id}>
+                        <label className={cn(OPTION_CARD, "items-center gap-3 rounded-xl p-3")}>
+                          <input
+                            type="radio"
+                            name="customer"
+                            value={c.id}
+                            checked={customerId === c.id}
+                            onChange={() => setCustomerId(c.id)}
+                            className="sr-only"
+                          />
+                          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-700 text-white">
+                            <UserRound aria-hidden className="size-5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-ink">{c.name}</span>
+                            <span className="block truncate text-xs text-ink-muted">{c.email}</span>
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </fieldset>
+                <Button
+                  size="lg"
+                  className="mt-5 w-full"
+                  disabled={busy || !customer}
+                  onClick={() => customer && logIn("user", next ?? "/", { userId: customer.id })}
+                  data-testid="login-submit"
+                >
+                  {customer ? `Log in as ${customer.name}` : "Choose an account"} <ArrowRight aria-hidden className="size-4" />
+                </Button>
+              </>
+            )}
           </section>
         ) : (
           <section aria-labelledby="caretaker-heading">
@@ -176,50 +235,57 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
                 ))}
               </div>
             </fieldset>
+            <ModeSwitch mode={mode} onChange={setMode} />
 
-            <fieldset className="mt-6">
-              <legend className="text-sm font-semibold text-ink">Choose your profile</legend>
-              <p className="text-xs text-ink-muted">Demo caretaker accounts. Pick one to open its dashboard.</p>
-              {profiles.length === 0 ? (
-                <p className="mt-3 rounded-xl border border-dashed border-line p-4 text-sm text-ink-muted">
-                  No {PROFESSION_LABELS[profession].toLowerCase()} profiles yet.
-                </p>
-              ) : (
-                <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto p-0.5">
-                  {profiles.map((profile) => (
-                    <li key={profile.id}>
-                      <label className={cn(OPTION_CARD, "items-center justify-between gap-3 rounded-xl p-3")}>
-                        <input
-                          type="radio"
-                          name="provider"
-                          value={profile.id}
-                          checked={providerId === profile.id}
-                          onChange={() => setProviderId(profile.id)}
-                          className="sr-only"
-                        />
-                        <span className="min-w-0">
-                          <span className="block font-semibold text-ink">{profile.name}</span>
-                          <span className="block truncate text-xs text-ink-muted">
-                            {profile.locality}, {profile.city}
-                          </span>
-                        </span>
-                        <VerificationBadge status={profile.verificationStatus} />
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </fieldset>
+            {mode === "new" ? (
+              <CreateAccountForm type="caretaker" profession={profession} next={next} enabled={enabled} />
+            ) : (
+              <>
+                <fieldset className="mt-4">
+                  <legend className="text-sm font-semibold text-ink">Choose your profile</legend>
+                  <p className="text-xs text-ink-muted">Pick a caretaker account to open its dashboard.</p>
+                  {profiles.length === 0 ? (
+                    <p className="mt-3 rounded-xl border border-dashed border-line p-4 text-sm text-ink-muted">
+                      No {PROFESSION_LABELS[profession].toLowerCase()} profiles yet. Create one with “New account”.
+                    </p>
+                  ) : (
+                    <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto p-0.5">
+                      {profiles.map((profile) => (
+                        <li key={profile.id}>
+                          <label className={cn(OPTION_CARD, "items-center justify-between gap-3 rounded-xl p-3")}>
+                            <input
+                              type="radio"
+                              name="provider"
+                              value={profile.id}
+                              checked={providerId === profile.id}
+                              onChange={() => setProviderId(profile.id)}
+                              className="sr-only"
+                            />
+                            <span className="min-w-0">
+                              <span className="block font-semibold text-ink">{profile.name}</span>
+                              <span className="block truncate text-xs text-ink-muted">
+                                {profile.locality}, {profile.city}
+                              </span>
+                            </span>
+                            <VerificationBadge status={profile.verificationStatus} />
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </fieldset>
 
-            <Button
-              size="lg"
-              className="mt-5 w-full"
-              disabled={busy || !selected}
-              onClick={() => selected && logIn("provider", "/dashboard/provider", selected.id)}
-              data-testid="login-submit"
-            >
-              {selected ? `Log in as ${selected.name}` : "Choose a profile"} <ArrowRight aria-hidden className="size-4" />
-            </Button>
+                <Button
+                  size="lg"
+                  className="mt-5 w-full"
+                  disabled={busy || !selected}
+                  onClick={() => selected && logIn("provider", "/dashboard/provider", { providerId: selected.id })}
+                  data-testid="login-submit"
+                >
+                  {selected ? `Log in as ${selected.name}` : "Choose a profile"} <ArrowRight aria-hidden className="size-4" />
+                </Button>
+              </>
+            )}
           </section>
         )}
 
@@ -241,7 +307,9 @@ export function LoginForm({ customerName, caretakers, professions, initialType, 
           Log in as admin
         </button>
       </p>
-      <p className="mt-2 text-center text-xs text-ink-muted">This MVP uses demo accounts, so no password or OTP is needed.</p>
+      <p className="mt-2 text-center text-xs text-ink-muted">
+        This MVP uses demo accounts, so no password or OTP is needed. New accounts are saved to the app&apos;s database.
+      </p>
     </div>
   );
 }

@@ -20,12 +20,20 @@ export function NavLinks({ items, variant }: { items: NavItem[]; variant: "deskt
         aria-current={active ? "page" : undefined}
         className={cn(
           variant === "desktop"
-            ? "rounded-full px-3.5 py-2 text-[15px] transition-colors hover:text-ink"
-            : "block rounded-lg px-3 py-2.5 text-sm hover:bg-slate-100",
-          active ? "font-bold text-ink" : "font-medium text-ink-muted",
+            ? cn(
+                "rounded-full px-3.5 py-1.5 text-[15px] whitespace-nowrap transition xl:px-4",
+                active
+                  ? "bg-white font-bold text-brand-700 shadow-sm ring-1 ring-brand-100"
+                  : "font-medium text-ink-muted hover:bg-white/70 hover:text-brand-700",
+              )
+            : cn(
+                "flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors",
+                active ? "bg-brand-50 font-bold text-brand-700" : "font-medium text-ink hover:bg-brand-50 hover:text-brand-700",
+              ),
         )}
       >
         {item.label}
+        {active && variant === "mobile" && <span aria-hidden className="size-2 rounded-full bg-leaf-500" />}
       </Link>
     );
   });

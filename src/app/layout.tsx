@@ -13,10 +13,11 @@ export const metadata: Metadata = {
   },
   description:
     "Home nursing, injections & IV, wound dressing, catheter care, elderly care, post-operative care, physiotherapy and home lab collection from verified providers near you, with transparent itemised pricing.",
+  icons: { icon: "/images/logo.png", apple: "/images/logo.png" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2a5fd3",
+  themeColor: "#0d52b8",
   width: "device-width",
   initialScale: 1,
 };

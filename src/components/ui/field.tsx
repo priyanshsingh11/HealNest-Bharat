@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export const inputClass =
-  "block w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink placeholder:text-slate-500 shadow-xs " +
+  "block w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-muted shadow-xs " +
   "focus:border-sea-600 focus:outline-none focus:ring-2 focus:ring-sea-600/30 aria-[invalid=true]:border-rose-500";
 
 export function Label({ className, ...props }: ComponentProps<"label">) {

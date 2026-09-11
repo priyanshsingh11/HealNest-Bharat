@@ -62,6 +62,36 @@ export function VerificationSelect({ providerId, status, name }: { providerId: s
   );
 }
 
+/** Approve or reject a caretaker's verification application. A note is required when rejecting. */
+export function VerificationDecision({ applicationId }: { applicationId: string }) {
+  const { pending, error, saved, mutate } = useMutation();
+  const [note, setNote] = useState("");
+  const decide = (decision: "approve" | "reject") =>
+    mutate(() => apiRequest(`/api/admin/verification/${applicationId}`, "PATCH", { decision, note }));
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`note-${applicationId}`}>Reviewer note</Label>
+      <Textarea
+        id={`note-${applicationId}`}
+        value={note}
+        maxLength={400}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Required when rejecting — tell the caretaker what to fix."
+        className="min-h-16"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="success" size="sm" disabled={pending} onClick={() => decide("approve")} data-testid="approve-verification">
+          Approve & verify
+        </Button>
+        <Button variant="danger" size="sm" disabled={pending} onClick={() => decide("reject")}>
+          Reject
+        </Button>
+        <Feedback error={error} saved={saved} />
+      </div>
+    </div>
+  );
+}
+
 export function ActiveToggle({ url, active, label }: { url: string; active: boolean; label: string }) {
   const { pending, error, mutate } = useMutation();
   return (
@@ -149,8 +179,8 @@ export function PricingRuleEditor({ rule }: { rule: PricingRule }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid items-end gap-3 rounded-xl border border-line p-4 sm:grid-cols-[1fr_8rem_8rem_auto_auto]">
-      <div>
+    <form onSubmit={submit} className="grid grid-cols-2 items-end gap-3 rounded-xl border border-line p-4 sm:grid-cols-[1fr_8rem_8rem_auto_auto]">
+      <div className="col-span-2 sm:col-span-1">
         <p className="font-semibold text-ink">{rule.label}</p>
         <p className="text-xs text-ink-muted">Applies to: {rule.itemType.replace("_", " ")} line</p>
       </div>

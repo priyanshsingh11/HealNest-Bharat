@@ -1,4 +1,5 @@
 import type {
+  ApplicationStatus,
   AuditLogEntry,
   AvailabilitySlot,
   Booking,
@@ -9,20 +10,41 @@ import type {
   PricingRule,
   ProviderProfile,
   Review,
+  Role,
   Service,
   SlotStatus,
   User,
+  VerificationApplication,
 } from "@/types";
 
 // Storage-agnostic data access. Pages, API routes and services depend only on this interface,
-// so the backing store (in-memory mock data or Supabase) can be swapped without UI changes.
+// so the backing store (in-memory or Supabase) can be swapped without UI changes.
 
-export type ProviderPatch = Partial<Pick<ProviderProfile, "verificationStatus" | "serviceRadiusKm" | "active">>;
+export type ProviderPatch = Partial<
+  Pick<
+    ProviderProfile,
+    | "verificationStatus"
+    | "serviceRadiusKm"
+    | "active"
+    | "name"
+    | "photoUrl"
+    | "languages"
+    | "yearsExperience"
+    | "credentials"
+    | "rating"
+    | "reviewCount"
+  >
+>;
 export type ServicePatch = Partial<Pick<Service, "basePriceMinor" | "active">>;
 export type CategoryPatch = Partial<Pick<Category, "active" | "description">>;
 export type PricingRulePatch = Partial<Pick<PricingRule, "mode" | "value" | "active" | "label">>;
 export type BookingPatch = Pick<Booking, "status" | "statusHistory" | "updatedAt">;
+export type VerificationPatch = Pick<VerificationApplication, "status" | "reviewedAt" | "reviewerNote">;
 export type NewAuditLogEntry = Omit<AuditLogEntry, "id" | "at">;
+
+export type UserFilter = {
+  role?: Role;
+};
 
 export type SlotFilter = {
   providerId?: string;
@@ -38,10 +60,18 @@ export type BookingFilter = {
   status?: BookingStatus;
 };
 
+export type VerificationFilter = {
+  providerId?: string;
+  status?: ApplicationStatus;
+};
+
 export interface CareRepository {
   readonly kind: "memory" | "supabase";
 
   getUser(id: string): Promise<User | null>;
+  listUsers(filter?: UserFilter): Promise<User[]>;
+  /** Throws a 409 if the id is taken. */
+  createUser(user: User): Promise<User>;
 
   listCategories(): Promise<Category[]>;
   updateCategory(id: CategoryId, patch: CategoryPatch): Promise<Category>;
@@ -49,6 +79,8 @@ export interface CareRepository {
   listProviders(filter?: { category?: CategoryId }): Promise<ProviderProfile[]>;
   getProvider(id: string): Promise<ProviderProfile | null>;
   updateProvider(id: string, patch: ProviderPatch): Promise<ProviderProfile>;
+  /** Creates a provider profile together with its services. Throws a 409 if the id is taken. */
+  createProvider(provider: ProviderProfile, services: Service[]): Promise<ProviderProfile>;
 
   listServices(filter?: { providerId?: string; providerIds?: string[] }): Promise<Service[]>;
   getService(id: string): Promise<Service | null>;
@@ -58,12 +90,22 @@ export interface CareRepository {
   getSlot(id: string): Promise<AvailabilitySlot | null>;
   createSlot(slot: AvailabilitySlot): Promise<AvailabilitySlot>;
   updateSlotStatus(id: string, status: SlotStatus): Promise<AvailabilitySlot>;
-  /** Atomically moves an open slot to booked. Returns false if it was no longer open. */
+  /** Atomically takes one place in an open slot, marking it booked once full. Returns false if no place was left. */
   reserveSlot(id: string): Promise<boolean>;
-  /** Returns a booked slot to open (after cancellation or decline). */
+  /** Gives one place back (after cancellation or decline), reopening a full slot. */
   releaseSlot(id: string): Promise<void>;
 
+  /** Newest first. */
   listReviews(providerId: string): Promise<Review[]>;
+  /** Throws a 409 if the booking already has a review. */
+  createReview(review: Review): Promise<Review>;
+  getReviewForBooking(bookingId: string): Promise<Review | null>;
+
+  /** Newest first. */
+  listVerificationApplications(filter?: VerificationFilter): Promise<VerificationApplication[]>;
+  getVerificationApplication(id: string): Promise<VerificationApplication | null>;
+  createVerificationApplication(application: VerificationApplication): Promise<VerificationApplication>;
+  updateVerificationApplication(id: string, patch: VerificationPatch): Promise<VerificationApplication>;
 
   listPricingRules(): Promise<PricingRule[]>;
   updatePricingRule(id: string, patch: PricingRulePatch): Promise<PricingRule>;

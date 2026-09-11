@@ -41,7 +41,7 @@ export function BookingActions({ bookingId, status, role, providerName, cancella
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:flex sm:flex-wrap">
         <Button variant="secondary" onClick={() => setContactOpen((o) => !o)} aria-expanded={contactOpen}>
           <MessageCircle aria-hidden className="size-4" /> Contact provider
         </Button>
@@ -89,7 +89,7 @@ export function BookingActions({ bookingId, status, role, providerName, cancella
       )}
 
       {contactOpen && (
-        <div className="rounded-xl border border-line bg-slate-50 p-4 text-sm">
+        <div className="rounded-xl border border-line bg-canvas p-4 text-sm">
           <p className="font-semibold">Contact {providerName}</p>
           <p className="mt-1 text-ink-muted">
             In the live app, calls and chats go through a masked number so neither side sees personal phone numbers. This demo does not

@@ -1,7 +1,7 @@
 // Shared domain types for HealNest Bharat.
 // All money values are integer minor units (paise for INR) to avoid floating-point errors.
 
-export const CATEGORY_IDS = ["nurse", "doctor", "physiotherapist", "phlebotomist", "babysitter", "caregiver"] as const;
+export const CATEGORY_IDS = ["nurse", "physiotherapist", "phlebotomist", "babysitter", "caregiver"] as const;
 export type CategoryId = (typeof CATEGORY_IDS)[number];
 
 /** Customer-facing home-care services. Each provider service is tagged with at most one. */
@@ -53,10 +53,14 @@ export type Credential = {
 
 export type GeoPoint = { latitude: number; longitude: number };
 
+export type Qualification = { degree: string; institution: string; year: number };
+
 export type ProviderProfile = {
   id: string;
   userId: string;
   name: string;
+  /** Verified profile photo (a small data URL in this demo), or null to show initials. */
+  photoUrl: string | null;
   category: CategoryId;
   gender: Gender;
   languages: string[];
@@ -81,6 +85,7 @@ export type Service = {
   careService: CareServiceId | null;
   name: string;
   description: string;
+  /** Home visit fee. */
   basePriceMinor: number;
   durationMinutes: number;
   /** Provider must confirm final medicine/procedure cost before the quote is final. */
@@ -92,6 +97,7 @@ export type Service = {
   active: boolean;
 };
 
+/** "booked" means every place in the slot is taken. */
 export type SlotStatus = "open" | "booked" | "blocked";
 
 export type AvailabilitySlot = {
@@ -100,6 +106,9 @@ export type AvailabilitySlot = {
   startAt: string;
   endAt: string;
   status: SlotStatus;
+  /** How many bookings this window can take. */
+  capacity: number;
+  bookedCount: number;
 };
 
 export type Address = {
@@ -193,15 +202,64 @@ export type Booking = {
   updatedAt: string;
 };
 
+/** Sub-ratings a customer can give alongside the overall stars. */
+export const REVIEW_ASPECTS = ["punctuality", "communication", "courtesy", "value"] as const;
+export type ReviewAspect = (typeof REVIEW_ASPECTS)[number];
+
 export type Review = {
   id: string;
+  /** Set when the review came from a completed booking ("verified visit"). */
   bookingId: string | null;
   userId: string;
   providerId: string;
   authorName: string;
   rating: number;
+  aspects: Partial<Record<ReviewAspect, number>>;
+  wouldRecommend: boolean | null;
   comment: string;
   createdAt: string;
+};
+
+export const GOVT_ID_TYPES = ["aadhaar", "pan", "voter_id", "passport", "driving_licence"] as const;
+export type GovtIdType = (typeof GOVT_ID_TYPES)[number];
+
+export const DOCUMENT_KINDS = ["photo_id", "degree", "registration", "police", "training", "other"] as const;
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+/** Metadata for an uploaded document. File contents are not stored in this demo. */
+export type VerificationDocument = { kind: DocumentKind; fileName: string; sizeBytes: number; contentType: string };
+
+/** What a caretaker submits for verification. Fields that don't apply to their profession are empty. */
+export type VerificationDetails = {
+  fullName: string;
+  phone: string;
+  email: string;
+  addressText: string;
+  city: string;
+  languages: string[];
+  yearsExperience: number;
+  govtIdType: GovtIdType;
+  /** Only the last four characters of the government ID are kept. */
+  govtIdLast4: string;
+  photoUrl: string | null;
+  registrationNumber: string;
+  registrationCouncil: string;
+  qualifications: Qualification[];
+  policeVerificationRef: string;
+};
+
+export type ApplicationStatus = "submitted" | "approved" | "rejected" | "superseded";
+
+export type VerificationApplication = {
+  id: string;
+  providerId: string;
+  category: CategoryId;
+  status: ApplicationStatus;
+  details: VerificationDetails;
+  documents: VerificationDocument[];
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewerNote: string;
 };
 
 export type PricingRuleItemType = Exclude<LineItemType, "tax">;
@@ -239,7 +297,17 @@ export type AuditLogEntry = {
   actorRole: Role;
   actorId: string;
   action: string;
-  entityType: "booking" | "quote" | "provider" | "pricing_rule" | "config" | "service" | "category" | "slot";
+  entityType:
+    | "booking"
+    | "quote"
+    | "provider"
+    | "pricing_rule"
+    | "config"
+    | "service"
+    | "category"
+    | "slot"
+    | "review"
+    | "verification";
   entityId: string;
   details: Record<string, unknown>;
 };

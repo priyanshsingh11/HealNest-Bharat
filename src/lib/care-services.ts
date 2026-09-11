@@ -52,9 +52,9 @@ export const CARE_SERVICES: CareService[] = [
     id: "elderly-care",
     name: "Elderly Care",
     summary: "Companionship, daily-living help and check-ups for seniors.",
-    description: "Everyday support for elders: companionship, mobility and personal care, plus doctor check-ups at home.",
-    includes: ["Companionship and supervision", "Help with bathing, dressing and meals", "Routine doctor check-ups at home"],
-    providedBy: ["caregiver", "doctor"],
+    description: "Everyday support for elders at home: companionship, mobility and personal care.",
+    includes: ["Companionship and supervision", "Help with bathing, dressing and meals", "Support with walks and mobility"],
+    providedBy: ["caregiver"],
   },
   {
     id: "post-operative-care",

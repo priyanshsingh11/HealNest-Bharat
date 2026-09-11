@@ -110,7 +110,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
             aria-activedescendant={open && suggestions[active] ? `${listId}-${suggestions[active].id}` : undefined}
             aria-describedby={cn(hintId, shownError && errorId) || undefined}
             aria-invalid={Boolean(shownError)}
-            placeholder="Search your area, e.g. Saket, Andheri West, Koramangala"
+            placeholder="Your area or city, e.g. Saket"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -122,7 +122,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
             onBlur={() => setOpen(false)}
             onKeyDown={onKeyDown}
             className={cn(
-              "block w-full rounded-xl border border-line bg-white pl-10 pr-10 text-ink shadow-sm placeholder:text-slate-500",
+              "block w-full rounded-xl border border-line bg-white pl-10 pr-10 text-ink shadow-sm placeholder:text-ink-muted",
               "focus:border-sea-600 focus:outline-none focus:ring-2 focus:ring-sea-600/30 aria-[invalid=true]:border-rose-500",
               large ? "h-14 text-base" : "h-11 text-sm",
             )}
@@ -135,7 +135,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
                 setQuery("");
                 onChange(null);
               }}
-              className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-ink-muted hover:bg-slate-100"
+              className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-ink-muted hover:bg-brand-50"
             >
               <X aria-hidden className="size-4" />
             </button>
@@ -149,7 +149,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
             >
               {suggestions.length === 0 && (
                 <li className="px-4 py-3 text-sm text-ink-muted">
-                  No matching area. The demo covers Delhi-NCR, Mumbai and Bengaluru.
+                  No matching area. Try your city name instead, e.g. Lucknow or Coimbatore.
                 </li>
               )}
               {suggestions.map((locality, index) => (

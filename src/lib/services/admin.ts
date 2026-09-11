@@ -1,4 +1,5 @@
-import { conflict, forbidden, notFound } from "@/lib/errors";
+import { conflict, forbidden, notFound, unprocessable } from "@/lib/errors";
+import { formatDateTime } from "@/lib/formatters";
 import type {
   CategoryPatch,
   CareRepository,
@@ -7,11 +8,15 @@ import type {
   ServicePatch,
 } from "@/lib/repository/types";
 import type { Session } from "@/lib/session";
-import type { CategoryId, PlatformConfig, SlotStatus } from "@/types";
+import type { SlotCreateInput } from "@/lib/validations";
+import type { AvailabilitySlot, CategoryId, PlatformConfig, SlotStatus } from "@/types";
 
 // Provider and admin mutations. Every change is authorized here and written to the audit log.
 
-function audit(
+/** How far ahead providers can open slots. */
+export const MAX_SCHEDULE_DAYS_AHEAD = 60;
+
+export function audit(
   repo: CareRepository,
   session: Session,
   action: string,
@@ -22,11 +27,11 @@ function audit(
   return repo.addAuditLog({ actorRole: session.role, actorId: session.userId, action, entityType, entityId, details });
 }
 
-function assertAdmin(session: Session) {
+export function assertAdmin(session: Session) {
   if (session.role !== "admin") throw forbidden("Admin role required.");
 }
 
-function assertProviderOwns(session: Session, providerId: string) {
+export function assertProviderOwns(session: Session, providerId: string) {
   if (session.role === "admin") return;
   if (session.role !== "provider" || session.providerId !== providerId) {
     throw forbidden("You can only manage your own provider profile.");
@@ -64,36 +69,57 @@ export async function setSlotStatus(repo: CareRepository, session: Session, slot
   const slot = await repo.getSlot(slotId);
   if (!slot) throw notFound("Slot");
   assertProviderOwns(session, slot.providerId);
-  if (slot.status === "booked") throw conflict("Booked slots can't be changed. Cancel or decline the booking instead.");
+  // Blocking a partly booked slot stops new bookings; patients already booked keep their place.
+  if (slot.status === "booked") throw conflict("Fully booked slots can't be changed. Cancel or decline the bookings instead.");
   const updated = await repo.updateSlotStatus(slotId, status);
   await audit(repo, session, "slot.status_changed", "slot", slotId, { from: slot.status, to: status });
   return updated;
 }
 
-export async function addSlot(
+/** Opens the same time window on each chosen day. */
+export async function addSlots(
   repo: CareRepository,
   session: Session,
   providerId: string,
-  startAt: string,
-  durationMinutes: number,
+  input: SlotCreateInput,
   now = new Date(),
-) {
+): Promise<AvailabilitySlot[]> {
   assertProviderOwns(session, providerId);
-  const start = new Date(startAt);
-  if (start.getTime() <= now.getTime()) throw conflict("New availability must be in the future.");
-  const end = new Date(start.getTime() + durationMinutes * 60_000);
-  const existing = await repo.listSlots({ providerId });
-  const overlaps = existing.some((s) => Date.parse(s.startAt) < end.getTime() && Date.parse(s.endAt) > start.getTime());
-  if (overlaps) throw conflict("This time overlaps an existing slot.");
-  const slot = await repo.createSlot({
-    id: `slot_${providerId.replace("prov_", "")}_${start.getTime()}`,
-    providerId,
-    startAt: start.toISOString(),
-    endAt: end.toISOString(),
-    status: "open",
+  const provider = await repo.getProvider(providerId);
+  if (!provider) throw notFound("Provider");
+
+  const latest = now.getTime() + MAX_SCHEDULE_DAYS_AHEAD * 24 * 3600 * 1000;
+  const windows = [...new Set(input.dates)].sort().map((date) => {
+    const start = new Date(`${date}T${input.startTime}:00+05:30`);
+    return { start, end: new Date(start.getTime() + input.durationMinutes * 60_000) };
   });
-  await audit(repo, session, "slot.created", "slot", slot.id, { startAt: slot.startAt, endAt: slot.endAt });
-  return slot;
+  for (const { start } of windows) {
+    if (Number.isNaN(start.getTime())) throw unprocessable("Choose valid dates.");
+    if (start.getTime() <= now.getTime()) throw conflict(`${formatDateTime(start.toISOString())} is in the past.`);
+    if (start.getTime() > latest) throw unprocessable(`You can open slots up to ${MAX_SCHEDULE_DAYS_AHEAD} days ahead.`);
+  }
+
+  const existing = await repo.listSlots({ providerId });
+  const clash = windows.find(({ start, end }) =>
+    existing.some((s) => Date.parse(s.startAt) < end.getTime() && Date.parse(s.endAt) > start.getTime()),
+  );
+  if (clash) throw conflict(`${formatDateTime(clash.start.toISOString())} overlaps an existing slot.`);
+
+  const created: AvailabilitySlot[] = [];
+  for (const { start, end } of windows) {
+    const slot = await repo.createSlot({
+      id: `slot_${providerId.replace("prov_", "")}_${start.getTime()}`,
+      providerId,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+      status: "open",
+      capacity: 1,
+      bookedCount: 0,
+    });
+    await audit(repo, session, "slot.created", "slot", slot.id, { startAt: slot.startAt, endAt: slot.endAt });
+    created.push(slot);
+  }
+  return created;
 }
 
 export async function updatePricingRule(repo: CareRepository, session: Session, ruleId: string, patch: PricingRulePatch) {

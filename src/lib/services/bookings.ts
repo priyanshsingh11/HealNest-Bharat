@@ -46,8 +46,7 @@ export async function createBooking(
     throw conflict("That time window is no longer available. Please pick another.");
   }
 
-  const address = { latitude: request.latitude, longitude: request.longitude };
-  const distanceKm = roundedDistanceKm(address, provider.baseLocation);
+  const distanceKm = roundedDistanceKm({ latitude: request.latitude, longitude: request.longitude }, provider.baseLocation);
   if (distanceKm > provider.serviceRadiusKm) {
     throw unprocessable(
       `This address is ${distanceKm} km away, outside ${provider.name}'s ${provider.serviceRadiusKm} km service area.`,

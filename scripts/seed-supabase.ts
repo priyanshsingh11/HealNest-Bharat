@@ -1,25 +1,16 @@
 /**
- * Seeds a Supabase project with the same demo data the in-memory store uses.
+ * Seeds a Supabase project with what a fresh store needs: categories, pricing rules, platform settings and the demo
+ * customer and admin accounts. No providers or bookings — caretakers sign up themselves.
  *
  *   1. Run every file in supabase/migrations (in filename order) in the Supabase SQL editor.
  *   2. Put SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local.
  *   3. npm run db:seed
  *
- * Idempotent: existing rows are left untouched (insert-if-missing), so admin edits and bookings survive
- * re-runs, and re-running later adds availability for new days.
+ * Idempotent: existing rows are left untouched (insert-if-missing), so admin edits survive re-runs.
  */
 import { createClient } from "@supabase/supabase-js";
-import { createSeedData } from "../src/lib/mock-data";
-import { SupabaseRepository } from "../src/lib/repository/supabase";
-import {
-  fromCategory,
-  fromPricingRule,
-  fromProvider,
-  fromReview,
-  fromService,
-  fromSlot,
-  fromUser,
-} from "../src/lib/repository/supabase-mappers";
+import { fromCategory, fromPricingRule, fromUser } from "../src/lib/repository/supabase-mappers";
+import { createSeedData } from "../src/lib/seed";
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -43,10 +34,6 @@ async function main() {
   console.log(`Seeding ${url}`);
   await insertMissing("categories", seed.categories.map(fromCategory));
   await insertMissing("app_users", seed.users.map(fromUser));
-  await insertMissing("provider_profiles", seed.providers.map(fromProvider));
-  await insertMissing("services", seed.services.map(fromService));
-  await insertMissing("availability_slots", seed.slots.map(fromSlot));
-  await insertMissing("reviews", seed.reviews.map(fromReview));
   await insertMissing("pricing_rules", seed.pricingRules.map(fromPricingRule));
   await insertMissing("platform_config", [
     {
@@ -64,15 +51,6 @@ async function main() {
       emergency_number: seed.config.emergencyNumber,
     },
   ]);
-
-  const repo = new SupabaseRepository(db);
-  let created = 0;
-  for (const booking of seed.bookings) {
-    if (await repo.getBooking(booking.id)) continue;
-    await repo.createBooking(booking);
-    created += 1;
-  }
-  console.log(`  ✓ sample bookings (${created} new)`);
   console.log("Done.");
 }
 

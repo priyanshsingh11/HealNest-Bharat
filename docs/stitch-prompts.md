@@ -11,7 +11,7 @@ How to use:
 ## Prompt 0 — Design system (paste first, with Prompt 1)
 
 ```
-Design system for "HealNest Bharat", an Indian web marketplace for booking verified home-visit care: home nurses, doctors (non-emergency), physiotherapists, home lab collection, babysitters/nannies and elder caregivers. Mood: calm, trustworthy, clinical but warm, very clear. Not flashy. Built for Indian families, including older users, so use large readable text and strong contrast.
+Design system for "HealNest Bharat", an Indian web marketplace for booking verified home-visit care: home nurses, physiotherapists, home lab collection, babysitters/nannies and elder caregivers. Mood: calm, trustworthy, clinical but warm, very clear. Not flashy. Built for Indian families, including older users, so use large readable text and strong contrast.
 
 Colors:
 - Background #F6F9FB, cards/surfaces #FFFFFF, borders #DCE5EC
@@ -40,16 +40,15 @@ Care-seeking screens show a thin rose emergency strip under the header with a si
 Home page for HealNest Bharat, using the design system above.
 
 1. Header + rose emergency strip.
-2. Hero on a soft vertical gradient from #ECFBF8 to #F6F9FB. Small teal uppercase eyebrow: "HOME VISITS · DELHI-NCR · MUMBAI · BENGALURU". H1: "Trusted care, at your doorstep." Subtext: "Find verified home nurses, doctors for non-emergency visits, babysitters and elder caregivers near you — with every rupee explained before you book." Optional on the right: a warm illustration of a nurse visiting an elderly Indian woman at home.
+2. Hero on a soft vertical gradient from #ECFBF8 to #F6F9FB. Small teal uppercase eyebrow: "HOME VISITS · DELHI-NCR · MUMBAI · BENGALURU". H1: "Trusted care, at your doorstep." Subtext: "Find verified home nurses, physiotherapists, lab collection, babysitters and elder caregivers near you — with every rupee explained before you book." Optional on the right: a warm illustration of a nurse visiting an elderly Indian woman at home.
 3. Big white search card (24px radius): a large location input with a map-pin icon and placeholder "Search your area, e.g. Indiranagar, Bengaluru", a secondary "Use my current location" button with a crosshair icon, then a primary teal button "Find care nearby →" and muted text "or pick the kind of help you need below".
-4. Section "What kind of help do you need?": a grid of 6 category cards (3 columns desktop, 2 on mobile). Each has a colored icon tile, a title, a one-line description and a small kind badge:
+4. Section "What kind of help do you need?": a grid of 5 category cards (3 columns desktop, 2 on mobile). Each has a colored icon tile, a title, a one-line description and a small kind badge:
    - Home Nurse (syringe, sky) — "Injections, wound dressing, vitals and post-operative care." — Medical service
-   - Doctor Home Visit (stethoscope, sky) — "Non-emergency consultations and follow-ups at home." — Medical service
    - Physiotherapist (person, sky) — "Pain relief, rehabilitation and mobility sessions." — Medical service
    - Home Lab Collection (test tube, sky) — "Blood and sample collection at home." — Medical service
    - Babysitter / Nanny (baby, fuchsia) — "Background-checked childcare at home." — Childcare — non-medical
    - Caregiver (hand-heart, violet) — "Companionship and daily-living support for elders." — Personal care — non-medical
-5. Three trust cards in a row, each with a green icon: "Verified professionals" (badge-check) — "Doctors and nurses show their council registration. Every provider displays their verification status." / "Transparent, itemised pricing" (receipt) — "See the visit fee, medicines, travel, platform fee and tax as separate lines before you confirm." / "Your location stays private" (lock) — "Your address is shared with a provider only after you give consent and confirm a booking."
+5. Three trust cards in a row, each with a green icon: "Verified professionals" (badge-check) — "Nurses and physiotherapists show their council registration. Every provider displays their verification status." / "Transparent, itemised pricing" (receipt) — "See the visit fee, medicines, travel, platform fee and tax as separate lines before you confirm." / "Your location stays private" (lock) — "Your address is shared with a provider only after you give consent and confirm a booking."
 6. White band "How it works" with 3 numbered teal circles: 1 "Tell us where" — "Search your area or use your current location." 2 "Choose a provider" — "Compare distance, availability, ratings, credentials and prices." 3 "Request a visit" — "Pick a time window, review the full quote and confirm." Below it, small muted disclaimer: "HealNest Bharat connects you with independent providers. It is not an emergency service and does not offer diagnosis or treatment advice. Babysitters and caregivers provide non-medical support only."
 7. Footer.
 ```
@@ -63,7 +62,7 @@ Search results page "Home Nurse near Indiranagar, Bengaluru" for HealNest Bharat
 
 - Header + rose emergency strip.
 - Title row: H1 "Home Nurse" + muted " near Indiranagar, Bengaluru"; subtext "Showing providers whose service area covers your location. Distances are approximate." On the right, a compact location bar with the current area and a "Change" button.
-- A horizontally scrollable row of pill chips: "All care", "Nurse" (selected, solid teal with white text), "Doctor", "Physio", "Lab tests", "Babysitter", "Caregiver", each with a small icon.
+- A horizontally scrollable row of pill chips: "All care", "Nurse" (selected, solid teal with white text), "Physio", "Lab tests", "Babysitter", "Caregiver", each with a small icon.
 - Two-column layout: a left filter sidebar (272px, white card, title "Filters" with a sliders icon) and results on the right.
   Filters: search input "Search by name or service" (placeholder "e.g. wound dressing"); Sort by (Nearest first / Soonest available / Highest rated / Lowest price); checkbox "Verified providers only"; Availability (Any time this week / Available today / By tomorrow / Within 7 days); Maximum distance (Up to 25 km, 3, 5, 10, 15 km); Starting price (Any, up to ₹500 / ₹800 / ₹1,000 / ₹1,500); Rating (Any / 4.5+ / 4.0+); Language; Provider gender preference (No preference / Female / Male); teal underlined link "Clear all filters".
 - Results header: "4 providers available" on the left, "Show map" toggle button on the right (when expanded, show an OpenStreetMap-style map with a blue "You" pin and teal provider pins).

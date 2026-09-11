@@ -1,12 +1,16 @@
 # HealNest Bharat
 
-Discover and request verified home nurses, doctors (non-emergency visits), babysitters/nannies and caregivers near you —
+Discover and request verified home nurses, physiotherapists, lab collection, babysitters/nannies and caregivers near you —
 with every rupee itemised before you confirm.
 
-Web MVP built with **Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Zod · React Hook Form · Supabase · Leaflet/OpenStreetMap · Vitest · Playwright**.
+> Doctors have been removed from the product; every booking is a home visit by one of the professions above. If your Supabase
+> database was set up earlier, run [`20260911020000_remove_doctors.sql`](supabase/migrations/20260911020000_remove_doctors.sql) —
+> it deletes the `doctor` category, doctor providers and everything tied to them. It is safe on a fresh database.
+
+Web MVP built with **Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Zod · React Hook Form · Supabase · Mappls (Leaflet/OpenStreetMap fallback) · Vitest · Playwright**.
 
 > ⚠️ HealNest Bharat is a care-services marketplace, **not** an emergency or diagnostic service. For life-threatening emergencies, dial **112**.
-> All providers, reviews and registration numbers in this demo are fictional. No real payments are taken.
+> No real payments are taken.
 
 ## Quick start
 
@@ -15,11 +19,12 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-No keys are needed: without Supabase credentials the app runs on seeded in-memory data (24 providers across Delhi-NCR, Mumbai and Bengaluru).
+No keys are needed: without Supabase credentials the app runs on an in-memory store. It starts with the categories,
+pricing rules and platform settings plus a demo customer and admin, but **no providers** — caretakers sign up themselves.
 In-memory data resets when the dev server restarts.
 
-Try it: search **"Saket"**, pick **Home Nurse**, open a provider, request a visit. Use the **Viewing as** switcher in the header
-to act as a **Provider** (accept the request) or **Admin** (change margins, verify providers).
+Try it: **Log in → Caretaker** and create a nurse based in **Saket**, add availability and submit verification. Switch to
+**Admin** to approve it. Then, as a customer, search **"Saket"**, pick **Home Nurse**, open the provider and request a visit.
 
 ## Scripts
 
@@ -31,23 +36,25 @@ to act as a **Provider** (accept the request) or **Admin** (change margins, veri
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest unit tests (distance, pricing, state machine, booking service) |
 | `npm run test:e2e` | Playwright smoke test (desktop + mobile Chromium). First run: `npx playwright install chromium` |
-| `npm run db:seed` | Seed a Supabase project with the demo data |
+| `npm run db:seed` | Seed a Supabase project with categories, pricing rules, settings and the demo accounts |
 
 ## Using Supabase
 
 1. Create a Supabase project.
-2. In **SQL Editor**, run [`supabase/migrations/20260910000000_init.sql`](supabase/migrations/20260910000000_init.sql)
-   (or `supabase db push` if you use the Supabase CLI).
+2. In **SQL Editor**, run every file in [`supabase/migrations/`](supabase/migrations/) in filename order
+   (or `supabase db push` if you use the Supabase CLI). See [docs/database-design.md](docs/database-design.md) for the
+   schema, the Supabase Auth link and the full activation checklist.
 3. Copy `.env.example` to `.env.local` and set:
    ```bash
    SUPABASE_URL=https://<project-ref>.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=<service_role or sb_secret_… key>
    ```
-4. `npm run db:seed` — idempotent; safe to re-run (adds availability for new days, keeps edits and bookings).
+4. `npm run db:seed` — idempotent; safe to re-run (keeps admin edits).
 5. `npm run dev` — the footer shows **Data source: Supabase**.
 
 `DATA_SOURCE=auto|memory|supabase` forces a source. The key is only read on the server; every table has Row Level Security
-enabled with no public policies, so the browser can never query the database directly. Price snapshots (`quotes`,
+with read-only policies (public catalogue, private rows for their owners and admins) and no write policies, so the browser
+can never write to the database directly. Price snapshots (`quotes`,
 `quote_line_items`) are protected from updates by a trigger, and money columns have `CHECK` constraints mirroring the pricing invariants.
 
 ## Project structure
@@ -70,12 +77,13 @@ src/
 │   ├── geo.ts               # Haversine distance
 │   ├── booking-status.ts    # Explicit booking state machine
 │   ├── validations.ts       # Zod schemas (forms + API)
-│   ├── mock-data.ts         # Typed seed data
+│   ├── platform-defaults.ts # Pricing rules, platform settings, caretaker starter services
+│   ├── seed.ts              # What a fresh store starts with (no providers or bookings)
 │   ├── repository/          # CareRepository interface, memory + Supabase implementations
 │   ├── services/            # discovery, quotes, bookings, admin (authorization + audit)
 │   └── db.ts                # Picks the data source
 ├── types/index.ts
-└── tests/                   # *.test.ts (Vitest), booking.spec.ts (Playwright)
+└── tests/                   # *.test.ts (Vitest, test-only data in fixtures.ts), booking.spec.ts (Playwright)
 supabase/migrations/         # Postgres schema
 scripts/seed-supabase.ts
 docs/                        # product-requirements.md, api-contracts.md
@@ -89,7 +97,7 @@ docs/                        # product-requirements.md, api-contracts.md
   re-checks verification, slot availability and service radius, and stores an immutable snapshot.
 - **Safety:** only verified providers can be booked; estimated medicine/procedure costs are labelled; location consent is required;
   coordinates from geolocation are rounded to ~100 m before booking.
-- **Swappable integrations:** storage (`CareRepository`), geocoding (`lib/localities.ts`), maps (`components/map-view.tsx`) and auth
+- **Swappable integrations:** storage (`CareRepository`), geocoding (`lib/localities.ts`), maps (`components/mappls-map-view.tsx` when `NEXT_PUBLIC_MAPPLS_KEY` is set, else `components/map-view.tsx`) and auth
   (`lib/session.ts` / `lib/auth.ts`) are each isolated behind one module.
 
 ## Known limitations (MVP)
@@ -103,7 +111,7 @@ docs/                        # product-requirements.md, api-contracts.md
 ## Future production integrations
 
 1. Real authentication and role-based authorization (e.g. Supabase Auth + RLS policies per user/provider).
-2. Verified identity and professional-licence checks (state medical/nursing councils), background checks, incident reporting.
+2. Verified identity and professional-licence checks (state nursing and physiotherapy councils), background checks, incident reporting.
 3. Maps/geocoding with location privacy controls.
 4. Payment processor with refunds and provider payouts; invoices and GST handling reviewed by a tax advisor.
 5. Prescription and medicine fulfilment workflows compliant with local law.

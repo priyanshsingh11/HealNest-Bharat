@@ -1,14 +1,72 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
 
 // End-to-end smoke test: location → category → provider → booking → confirmation.
-// Runs against the in-memory data source (see playwright.config.ts).
+// Runs against the in-memory data source (see playwright.config.ts), which starts with no providers, so the suite first
+// signs up a nurse, opens her availability and has the admin verify her — all through the public API.
+
+const PHOTO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==";
+let nurse: { id: string; name: string };
+
+/** IST calendar date, `days` from today. */
+function istDate(days: number): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(Date.now() + days * 24 * 3600 * 1000));
+}
+
+async function json(response: APIResponse) {
+  expect(response.ok(), await response.text()).toBe(true);
+  return response.json();
+}
+
+test.beforeAll(async ({ playwright }, testInfo) => {
+  const api = await playwright.request.newContext({ baseURL: testInfo.project.use.baseURL });
+  const name = "Test Nurse";
+  const email = `nurse-${Date.now()}@example.test`;
+  const phone = "9876543210";
+
+  const { session } = await json(
+    await api.post("/api/accounts", {
+      data: { type: "caretaker", name, email, phone, category: "nurse", gender: "female", localityId: "del-cp", languages: ["Hindi", "English"], yearsExperience: 6 },
+    }),
+  );
+  const providerId: string = session.providerId;
+
+  await json(await api.post(`/api/providers/${providerId}/slots`, { data: { dates: [istDate(1), istDate(2)], startTime: "10:00", durationMinutes: 120 } }));
+
+  const { application } = await json(
+    await api.post(`/api/providers/${providerId}/verification`, {
+      data: {
+        fullName: name,
+        phone,
+        email,
+        addressText: "House 4, Barakhamba Road, Connaught Place",
+        city: "New Delhi",
+        languages: ["Hindi", "English"],
+        yearsExperience: 6,
+        govtIdType: "aadhaar",
+        govtIdLast4: "1234",
+        photoUrl: PHOTO,
+        registrationNumber: "DNC-12345",
+        registrationCouncil: "Delhi Nursing Council",
+        qualifications: [{ degree: "B.Sc Nursing", institution: "Test College of Nursing", year: 2018 }],
+        policeVerificationRef: "",
+        documents: ["photo_id", "degree", "registration"].map((kind) => ({ kind, fileName: `${kind}.pdf`, sizeBytes: 1000, contentType: "application/pdf" })),
+        confirmAccurate: true,
+      },
+    }),
+  );
+
+  await json(await api.post("/api/session", { data: { role: "admin" } }));
+  await json(await api.patch(`/api/admin/verification/${application.id}`, { data: { decision: "approve" } }));
+  await api.dispose();
+  nurse = { id: providerId, name };
+});
 
 function collectConsoleErrors(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    // Map tiles come from OpenStreetMap; ignore network failures for them in offline CI.
-    if (message.type() === "error" && !message.location().url.includes("openstreetmap")) errors.push(message.text());
+    // Map SDK/tiles come from Mappls or OpenStreetMap; ignore network failures for them in offline CI.
+    if (message.type() === "error" && !/openstreetmap|mappls/.test(message.location().url)) errors.push(message.text());
   });
   return errors;
 }
@@ -75,8 +133,8 @@ test("customer books a home nurse from the homepage", async ({ page, isMobile })
 });
 
 test("provider profile opens directly by URL", async ({ page }) => {
-  await page.goto("/providers/prov_03");
-  await expect(page.getByRole("heading", { level: 1, name: "Dr. Kavita Suri" })).toBeVisible();
+  await page.goto(`/providers/${nurse.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: nurse.name })).toBeVisible();
   await expect(page.getByText("Medical service", { exact: true }).first()).toBeVisible();
 });
 
@@ -92,5 +150,26 @@ test("provider and admin dashboard demo routes load", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Pricing rules & platform margin" })).toBeVisible();
 
   // Reset to the customer role so other tests start from the default session.
+  await page.context().clearCookies();
+});
+
+test("provider dashboard pages load", async ({ page }) => {
+  await page.request.post("/api/session", { data: { role: "provider", providerId: nurse.id } });
+
+  await page.goto("/dashboard/provider");
+  await expect(page.getByRole("heading", { name: "Today's patient queue" })).toBeVisible();
+
+  await page.goto("/dashboard/provider/calendar");
+  await expect(page.getByRole("link", { name: /Download calendar/ })).toBeVisible();
+
+  await page.goto("/dashboard/provider/schedule");
+  await expect(page.getByRole("heading", { name: "Add availability" })).toBeVisible();
+
+  await page.goto("/dashboard/provider/verification");
+  await expect(page.getByTestId("verification-form")).toBeVisible();
+
+  const calendar = await page.request.get(`/api/providers/${nurse.id}/calendar`);
+  expect(calendar.headers()["content-type"]).toContain("text/calendar");
+
   await page.context().clearCookies();
 });

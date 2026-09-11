@@ -3,8 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, Lock, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { useForm, useWatch, type FieldPath } from "react-hook-form";
+import { useState } from "react";
+import { useForm, useWatch, type DefaultValues, type FieldPath } from "react-hook-form";
 import { LocationPicker } from "@/components/location-picker";
 import { QuoteBreakdown } from "@/components/quote-breakdown";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
       medicineQuantity: 1,
       consentToShareLocation: false,
       acceptPriceBreakdown: false,
-    },
+    } as DefaultValues<BookingFormValues>,
   });
   const { register, handleSubmit, formState, setValue, setError, control } = form;
   const { errors, isSubmitting, isSubmitSuccessful } = formState;
@@ -62,19 +62,15 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
   const offersMedicine = (service?.medicineEstimateMinor ?? 0) > 0;
 
   // Client-side preview using the same pricing module the server uses. The server recalculates on submit.
-  const quote = useMemo(
-    () =>
-      calculateQuote({
-        service,
-        provider,
-        rules,
-        config,
-        includeMedicine: Boolean(includeMedicine) && offersMedicine,
-        medicineQuantity: Number(medicineQuantity) || 1,
-        quoteId: "preview",
-      }),
-    [service, provider, rules, config, includeMedicine, offersMedicine, medicineQuantity],
-  );
+  const quote = calculateQuote({
+    service,
+    provider,
+    rules,
+    config,
+    includeMedicine: Boolean(includeMedicine) && offersMedicine,
+    medicineQuantity: Number(medicineQuantity) || 1,
+    quoteId: "preview",
+  });
 
   const distanceKm = location ? roundedDistanceKm(location, provider.baseLocation) : null;
   const outsideArea = distanceKm !== null && distanceKm > provider.serviceRadiusKm;
@@ -115,8 +111,8 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         )}
 
         <fieldset className="rounded-2xl border border-line bg-white p-5">
-          <legend className="px-1 text-base font-bold">1. Choose a service</legend>
-          <div className="mt-2 space-y-2">
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">1. Choose a service</legend>
+          <div className="clear-both space-y-2">
             {services.map((s) => (
               <label
                 key={s.id}
@@ -127,9 +123,9 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
               >
                 <input type="radio" value={s.id} {...register("serviceId")} className="mt-1 size-4 accent-brand-700" />
                 <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap justify-between gap-2">
-                    <span className="font-semibold text-ink">{s.name}</span>
-                    <span className="font-bold text-ink">{formatMoney(s.basePriceMinor)}</span>
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 font-semibold text-ink">{s.name}</span>
+                    <span className="shrink-0 whitespace-nowrap font-bold text-ink">{formatMoney(s.basePriceMinor)}</span>
                   </span>
                   <span className="mt-0.5 block text-sm text-ink-muted">
                     {s.description} · {formatDuration(s.durationMinutes)}
@@ -142,7 +138,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="rounded-2xl border border-line bg-white p-5" aria-describedby="slot-hint">
-          <legend className="px-1 text-base font-bold">2. Pick a date & arrival window</legend>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">2. Pick a date & arrival window</legend>
           <Hint id="slot-hint">Times are in IST. The provider arrives within the chosen 2-hour window.</Hint>
           {days.length === 0 ? (
             <p className="mt-3 text-sm text-ink-muted">No open time windows this week. Please check back later.</p>
@@ -162,6 +158,9 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
                       >
                         <input type="radio" value={slot.id} {...register("slotId")} className="sr-only" data-testid="slot-option" />
                         {formatTime(slot.startAt)} – {formatTime(slot.endAt)}
+                        {slot.capacity > 1 && (
+                          <span className="ml-1 text-xs font-medium opacity-80">· {slot.capacity - slot.bookedCount} left</span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -173,7 +172,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="space-y-4 rounded-2xl border border-line bg-white p-5">
-          <legend className="px-1 text-base font-bold">3. Visit address</legend>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">3. Visit address</legend>
           <LocationPicker
             label="Area"
             value={location}
@@ -213,8 +212,8 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="space-y-4 rounded-2xl border border-line bg-white p-5">
-          <legend className="px-1 text-base font-bold">4. What help do you need?</legend>
-          <div>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">4. What help do you need?</legend>
+          <div className="clear-both">
             <Label htmlFor="notes">Short description (optional)</Label>
             <Textarea
               id="notes"
@@ -261,8 +260,8 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="space-y-3 rounded-2xl border border-line bg-white p-5">
-          <legend className="px-1 text-base font-bold">5. Consent & confirmation</legend>
-          <div className="flex items-start gap-3">
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">5. Consent & confirmation</legend>
+          <div className="clear-both flex items-start gap-3">
             <input
               id="consentToShareLocation"
               type="checkbox"
@@ -310,10 +309,12 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
           </h2>
           <p className="mb-2 text-xs text-ink-muted">Preview — the final price is recalculated securely when you confirm.</p>
           <QuoteBreakdown quote={quote} />
-          <Button type="submit" size="lg" className="mt-5 hidden w-full lg:inline-flex" disabled={busy || outsideArea} data-testid="confirm-booking">
-            {busy && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-            {busy ? "Sending request…" : `Confirm request · ${formatMoney(quote.totalMinor)}`}
-          </Button>
+          <div className="mt-5 hidden lg:block">
+            <Button type="submit" size="lg" className="w-full" disabled={busy || outsideArea} data-testid="confirm-booking">
+              {busy && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
+              {busy ? "Sending request…" : `Confirm request · ${formatMoney(quote.totalMinor)}`}
+            </Button>
+          </div>
         </div>
       </aside>
 

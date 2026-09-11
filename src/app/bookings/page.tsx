@@ -18,6 +18,18 @@ export default async function BookingsPage() {
         ? await repo.listBookings({ providerId: session.providerId! })
         : await repo.listBookings({ userId: session.userId });
 
+  // Customers are prompted to rate completed visits they haven't reviewed yet.
+  const reviewed =
+    session.role === "user"
+      ? new Set(
+          (
+            await Promise.all(
+              bookings.filter((b) => b.status === "COMPLETED").map(async (b) => ((await repo.getReviewForBooking(b.id)) ? b.id : null)),
+            )
+          ).filter(Boolean),
+        )
+      : new Set();
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
@@ -32,25 +44,29 @@ export default async function BookingsPage() {
         </div>
       ) : (
         <ul className="mt-6 space-y-3">
-          {bookings.map((booking) => (
-            <li key={booking.id}>
-              <Link
-                href={`/booking/${booking.id}`}
-                className="flex flex-col gap-2 rounded-2xl border border-line bg-white p-5 shadow-sm hover:border-brand-300 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-bold text-ink">{booking.serviceName}</p>
-                  <p className="text-sm text-ink-muted">
-                    {booking.providerName} · {formatTimeRange(booking.scheduledStart, booking.scheduledEnd)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={booking.status} />
-                  <span className="font-bold">{formatMoney(booking.totalAmountMinor)}</span>
-                </div>
-              </Link>
-            </li>
-          ))}
+          {bookings.map((booking) => {
+            const toRate = session.role === "user" && booking.status === "COMPLETED" && !reviewed.has(booking.id);
+            return (
+              <li key={booking.id}>
+                <Link
+                  href={toRate ? `/booking/${booking.id}#review` : `/booking/${booking.id}`}
+                  className="flex flex-col gap-2 rounded-2xl border border-line bg-white p-5 shadow-sm hover:border-brand-300 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-bold text-ink">{booking.serviceName}</p>
+                    <p className="text-sm text-ink-muted">
+                      {booking.providerName} · {formatTimeRange(booking.scheduledStart, booking.scheduledEnd)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <StatusBadge status={booking.status} />
+                    {toRate && <span className="text-sm font-semibold text-brand-700">Rate your visit →</span>}
+                    <span className="ml-auto font-bold tabular-nums sm:ml-0 sm:w-24 sm:text-right">{formatMoney(booking.totalAmountMinor)}</span>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
