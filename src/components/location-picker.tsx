@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, LocateFixed, MapPin, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, LocateFixed, MapPin, X } from "lucide-react";
 import { useId, useState, type KeyboardEvent, type Ref } from "react";
 import { cn } from "@/lib/cn";
 import { localityLabel, searchLocalities } from "@/lib/localities";
@@ -18,6 +18,16 @@ type Props = {
 /** Rounded to ~100 m so precise coordinates are never kept in URLs or shared before booking. */
 const coarse = (n: number) => Math.round(n * 1000) / 1000;
 
+/** The real-world address behind the GPS fix, from /api/geo/reverse. */
+type ResolvedAddress = {
+  formattedAddress: string;
+  shortAddress: string;
+  postcode?: string;
+  latitude: number;
+  longitude: number;
+  accuracyM?: number;
+};
+
 /**
  * Address search (offline locality list for the MVP) plus optional browser geolocation.
  * Accessible combobox: arrow keys move through suggestions, Enter selects, Escape closes.
@@ -32,6 +42,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
   const [active, setActive] = useState(0);
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<ResolvedAddress | null>(null);
 
   const suggestions = searchLocalities(query);
 
@@ -43,6 +54,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
   }
 
   function chooseSuggestion(index: number) {
+    setResolved(null);
     const locality = suggestions[index];
     if (locality) choose({ label: localityLabel(locality), latitude: locality.latitude, longitude: locality.longitude });
   }
@@ -63,8 +75,40 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
     }
   }
 
+  /**
+   * Turns the raw GPS fix into the user's actual address so the field shows
+   * "Saket, New Delhi" rather than a bare "Current location".
+   * Coordinates are still stored coarse (~100 m) — only the lookup uses the precise fix.
+   */
+  async function resolveAddress(latitude: number, longitude: number, accuracyM?: number) {
+    try {
+      const res = await fetch(`/api/geo/reverse?lat=${latitude}&lng=${longitude}`, { signal: AbortSignal.timeout(8_000) });
+      const data = res.ok ? await res.json() : null;
+      if (data?.ok) {
+        const shortAddress: string = data.shortAddress || [data.locality, data.city].filter(Boolean).join(", ");
+        if (shortAddress) {
+          setResolved({
+            formattedAddress: data.formattedAddress || shortAddress,
+            shortAddress,
+            postcode: data.postcode || undefined,
+            latitude,
+            longitude,
+            accuracyM,
+          });
+          choose({ label: shortAddress, latitude: coarse(latitude), longitude: coarse(longitude) });
+          return;
+        }
+      }
+    } catch {
+      // Address lookup failed — the coordinates alone are still usable for search.
+    }
+    setResolved(null);
+    choose({ label: "Current location", latitude: coarse(latitude), longitude: coarse(longitude) });
+  }
+
   function useMyLocation() {
     setGeoError(null);
+    setResolved(null);
     if (!("geolocation" in navigator)) {
       setGeoError("Your browser doesn't support location access. Please type your area instead.");
       return;
@@ -72,8 +116,10 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocating(false);
-        choose({ label: "Current location", latitude: coarse(position.coords.latitude), longitude: coarse(position.coords.longitude) });
+        const { latitude, longitude, accuracy } = position.coords;
+        void resolveAddress(latitude, longitude, Number.isFinite(accuracy) ? Math.round(accuracy) : undefined).finally(() =>
+          setLocating(false),
+        );
       },
       (error) => {
         setLocating(false);
@@ -83,7 +129,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
             : "We couldn't get your location. Type your area instead.",
         );
       },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
     );
   }
 
@@ -116,6 +162,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
               setQuery(e.target.value);
               setActive(0);
               setOpen(true);
+              setResolved(null);
               if (value) onChange(null);
             }}
             onFocus={() => setOpen(true)}
@@ -133,6 +180,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
               aria-label="Clear location"
               onClick={() => {
                 setQuery("");
+                setResolved(null);
                 onChange(null);
               }}
               className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-ink-muted hover:bg-brand-50"
@@ -181,7 +229,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
           )}
         >
           {locating ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <LocateFixed aria-hidden className="size-4" />}
-          {locating ? "Locating…" : "Use my location"}
+          {locating ? "Finding your address…" : "Use my location"}
         </button>
       </div>
       <p id={hintId} className="mt-2 text-xs text-ink-muted">
@@ -191,6 +239,22 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
         <p id={errorId} role="alert" className="mt-1 text-sm font-medium text-rose-700">
           {shownError}
         </p>
+      )}
+      {resolved && !shownError && (
+        <div role="status" className="mt-2 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs">
+          <CheckCircle2 aria-hidden className="mt-0.5 size-4 shrink-0 text-emerald-700" />
+          <div className="min-w-0">
+            <p className="font-semibold text-emerald-950">{resolved.shortAddress}</p>
+            <p className="mt-0.5 leading-relaxed text-emerald-900/90">{resolved.formattedAddress}</p>
+            <p className="mt-1 text-emerald-800/80">
+              <span className="font-mono">
+                {resolved.latitude.toFixed(5)}, {resolved.longitude.toFixed(5)}
+              </span>
+              {resolved.postcode ? ` · PIN ${resolved.postcode}` : ""}
+              {resolved.accuracyM ? ` · ±${resolved.accuracyM} m` : ""}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
