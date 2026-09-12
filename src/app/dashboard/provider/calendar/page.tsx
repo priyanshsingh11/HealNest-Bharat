@@ -29,8 +29,8 @@ function startsIn(iso: string, now: Date): string {
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function ProviderCalendarPage({ searchParams }: PageProps) {
-  const { session, repo, provider, pickerOptions } = await getProviderDashboard();
-  if (!provider) return <ProviderGate pickerOptions={pickerOptions} missing={session.role === "provider"} />;
+  const { session, repo, provider } = await getProviderDashboard();
+  if (!provider) return <ProviderGate missing={session.role === "provider"} />;
 
   const week = Math.min(MAX_WEEKS_AHEAD, Math.max(0, Math.trunc(Number(flattenParams(await searchParams).week)) || 0));
   const now = new Date();
@@ -53,7 +53,7 @@ export default async function ProviderCalendarPage({ searchParams }: PageProps) 
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <ProviderDashboardHeader provider={provider} pickerOptions={pickerOptions} eyebrow="Calendar" />
+      <ProviderDashboardHeader provider={provider} eyebrow="Calendar" />
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_20rem]">
         <Card className="min-w-0 p-6">

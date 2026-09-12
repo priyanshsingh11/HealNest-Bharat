@@ -13,8 +13,8 @@ const SCHEDULE_DAYS = 14;
 const weekday = new Intl.DateTimeFormat("en-IN", { timeZone: APP_TIME_ZONE, weekday: "short" });
 
 export default async function ProviderSchedulePage() {
-  const { session, repo, provider, pickerOptions } = await getProviderDashboard();
-  if (!provider) return <ProviderGate pickerOptions={pickerOptions} missing={session.role === "provider"} />;
+  const { session, repo, provider } = await getProviderDashboard();
+  if (!provider) return <ProviderGate missing={session.role === "provider"} />;
 
   const now = new Date();
   const [slots, services] = await Promise.all([
@@ -30,7 +30,7 @@ export default async function ProviderSchedulePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <ProviderDashboardHeader provider={provider} pickerOptions={pickerOptions} eyebrow="Slots" />
+      <ProviderDashboardHeader provider={provider} eyebrow="Slots" />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_24rem]">
         <div className="min-w-0 space-y-6">

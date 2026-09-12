@@ -170,6 +170,13 @@ export const sessionSchema = z.object({
   providerId: z.string().max(40).optional(),
   /** Customer account to log into. Required for the user role. */
   userId: z.string().max(60).optional(),
+  /**
+   * Secret issued to this browser at sign-up. Required for the user and provider roles: it proves the
+   * account was registered on this device. See src/lib/devices.ts.
+   */
+  deviceToken: z.string().max(200).optional(),
+  /** Staff passcode. Required for the admin role, which has no account picker. */
+  passcode: z.string().max(200).optional(),
 });
 
 const accountFields = {

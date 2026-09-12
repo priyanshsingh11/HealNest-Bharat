@@ -1,52 +1,39 @@
 import Link from "next/link";
 import { KindBadge, VerificationBadge, VerifiedTick } from "@/components/category-meta";
 import { ProviderDashboardNav } from "@/components/dashboard/provider-nav";
-import { SwitchRole } from "@/components/dashboard/switch-role";
+import { ProviderSwitcher } from "@/components/dashboard/provider-switcher";
 import { ProviderAvatar } from "@/components/provider-avatar";
 import { Card } from "@/components/ui/card";
-import type { ProviderPickerOption } from "@/lib/provider-dashboard";
 import type { ProviderProfile } from "@/types";
 
-/** Shown when nobody is signed in as a caretaker: pick a demo profile or go to the login page. */
-export function ProviderGate({ pickerOptions, missing = false }: { pickerOptions: ProviderPickerOption[]; missing?: boolean }) {
+/** Shown when nobody is signed in as a caretaker. Only profiles registered on this device can be opened. */
+export function ProviderGate({ missing = false }: { missing?: boolean }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <h1 className="text-2xl font-extrabold">Provider dashboard</h1>
       <p className="mt-2 text-ink-muted">
-        {missing ? "That provider profile wasn't found. " : ""}This is a demo with mock login. Choose a provider profile to see their
-        requests, calendar, patient queue and payouts, or{" "}
+        {missing ? "That caretaker profile wasn't found. " : ""}Open one of the caretaker profiles saved on this device, or{" "}
         <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
           log in as a caretaker
         </Link>
         .
       </p>
       <Card className="mt-6 p-6">
-        {pickerOptions.length ? (
-          <SwitchRole role="provider" providers={pickerOptions} label="Open provider dashboard" />
-        ) : (
-          <p className="text-ink-muted">
-            No caretaker profiles yet.{" "}
-            <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
-              Create one
-            </Link>{" "}
-            to get started.
-          </p>
-        )}
+        <ProviderSwitcher />
+        <p className="mt-3 text-sm text-ink-muted">
+          Caretaker accounts can only be opened from the device they were created on.{" "}
+          <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
+            Create one
+          </Link>{" "}
+          to get started.
+        </p>
       </Card>
     </div>
   );
 }
 
 /** Caretaker dashboard header: photo, name with the verified tick, status badges, profile switcher and section tabs. */
-export function ProviderDashboardHeader({
-  provider,
-  pickerOptions,
-  eyebrow,
-}: {
-  provider: ProviderProfile;
-  pickerOptions: ProviderPickerOption[];
-  eyebrow: string;
-}) {
+export function ProviderDashboardHeader({ provider, eyebrow }: { provider: ProviderProfile; eyebrow: string }) {
   return (
     <>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -64,7 +51,7 @@ export function ProviderDashboardHeader({
             </div>
           </div>
         </div>
-        <SwitchRole role="provider" providers={pickerOptions} currentProviderId={provider.id} label="Switch" />
+        <ProviderSwitcher currentProviderId={provider.id} />
       </div>
       <ProviderDashboardNav />
     </>

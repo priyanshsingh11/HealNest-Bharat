@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { BrandMark } from "@/components/brand-logo";
-import { LoginForm, type CaretakerOption, type CustomerOption } from "@/components/login-form";
+import { LoginForm } from "@/components/login-form";
 import { bookableCategories, isComingSoon } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
 import { flattenParams } from "@/lib/location";
-import { isAuthPlaceholder } from "@/lib/services/accounts";
 import type { CategoryId } from "@/types";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -21,41 +20,21 @@ function safeNext(value: string | undefined): string | null {
   return value;
 }
 
+/**
+ * Which accounts exist is deliberately not sent to the browser. The page renders only the professions
+ * available for sign-up; the accounts you can log into come from this device's own store, so nobody can
+ * see — let alone open — an account created on someone else's device.
+ */
 export default async function LoginPage({ searchParams }: PageProps) {
   const params = flattenParams(await searchParams);
-  const repo = getRepository();
-  const [providers, categories, customerUsers] = await Promise.all([
-    repo.listProviders(),
-    repo.listCategories(),
-    repo.listUsers({ role: "user" }),
-  ]);
-
-  // Created accounts by name. Placeholder rows made by the Supabase Auth sign-up trigger are not accounts.
-  const customers: CustomerOption[] = customerUsers
-    .filter((user) => !isAuthPlaceholder(user))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(({ id, name, email }) => ({ id, name, email }));
-
+  const categories = await getRepository().listCategories();
   const activeCategories = new Set(bookableCategories(categories).map((c) => c.id));
-  const caretakers: CaretakerOption[] = providers
-    .filter((p) => p.active && activeCategories.has(p.category))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      category: p.category,
-      locality: p.baseLocation.locality,
-      city: p.baseLocation.city,
-      verificationStatus: p.verificationStatus,
-    }));
 
   return (
     <div className="hero-surface">
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
         <BrandMark className="mx-auto h-20" />
         <LoginForm
-          customers={customers}
-          caretakers={caretakers}
           professions={PROFESSION_ORDER.filter((id) => activeCategories.has(id) || isComingSoon(id))}
           initialType={params.as === "caretaker" ? "caretaker" : "customer"}
           next={safeNext(params.next)}

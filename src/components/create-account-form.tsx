@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, Hint, Input, Label, Select } from "@/components/ui/field";
 import { PROFESSION_LABELS } from "@/lib/categories";
 import { ApiRequestError, apiRequest } from "@/lib/client-api";
+import { rememberDeviceAccount, type DeviceAccount } from "@/lib/device-accounts";
 import { CaretakerLocationPicker } from "@/components/caretaker-location-picker";
 import type { CategoryId } from "@/types";
 
@@ -100,7 +101,10 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
     setIssues({});
     setSubmitting(true);
     try {
-      await apiRequest("/api/accounts", "POST", body);
+      // The response carries the device secret for the new account — returned exactly once, at sign-up.
+      // Saving it here is what lets this browser (and only this browser) log back in later.
+      const { account } = await apiRequest<{ account: DeviceAccount }>("/api/accounts", "POST", body);
+      rememberDeviceAccount(account);
       startTransition(() => {
         router.push(caretaker ? "/dashboard/provider" : (next ?? "/"));
         router.refresh();

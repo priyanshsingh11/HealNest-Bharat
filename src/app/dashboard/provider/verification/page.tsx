@@ -92,8 +92,8 @@ function CheckList({ checks }: { checks: string[] }) {
 }
 
 export default async function ProviderVerificationPage() {
-  const { session, repo, provider, pickerOptions } = await getProviderDashboard();
-  if (!provider) return <ProviderGate pickerOptions={pickerOptions} missing={session.role === "provider"} />;
+  const { session, repo, provider } = await getProviderDashboard();
+  if (!provider) return <ProviderGate missing={session.role === "provider"} />;
 
   const [applications, user] = await Promise.all([repo.listVerificationApplications({ providerId: provider.id }), repo.getUser(provider.userId)]);
   const latest = applications[0] ?? null;
@@ -109,7 +109,7 @@ export default async function ProviderVerificationPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <ProviderDashboardHeader provider={provider} pickerOptions={pickerOptions} eyebrow="Profile & verification" />
+      <ProviderDashboardHeader provider={provider} eyebrow="Profile & verification" />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="min-w-0 space-y-6">

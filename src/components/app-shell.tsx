@@ -1,4 +1,4 @@
-import { Menu, X } from "lucide-react";
+import { Mail, Menu, Phone, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandMark, Wordmark } from "@/components/brand-logo";
@@ -51,6 +51,26 @@ function AccountAvatar({ name }: { name: string }) {
 /** Blue-to-green strip, as in the logo. */
 function BrandStrip({ className }: { className?: string }) {
   return <div aria-hidden className={`h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-leaf-500 ${className ?? ""}`} />;
+}
+
+/** One column of footer links: a label and a spaced list. */
+function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">{title}</p>
+      <ul className="mt-4 space-y-3 text-sm">{children}</ul>
+    </div>
+  );
+}
+
+function FooterLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <li>
+      <Link href={href} className="text-brand-100/70 transition-colors hover:text-white">
+        {children}
+      </Link>
+    </li>
+  );
 }
 
 export async function AppShell({ children }: { children: ReactNode }) {
@@ -135,48 +155,55 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <footer className="bg-brand-900 text-brand-100">
         <BrandStrip />
 
-        {/* Main section */}
-        <div className="mx-auto max-w-7xl px-4 pt-10 pb-6 sm:px-6">
-          <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1.3fr] lg:gap-12">
 
             {/* Brand + tagline */}
-            <div className="max-w-sm">
+            <div className="sm:col-span-2 lg:col-span-1 lg:max-w-xs">
               <p className="flex items-center gap-3">
                 <span className="grid size-10 place-items-center rounded-xl bg-white p-1.5 shadow-sm">
                   <BrandMark className="h-full" />
                 </span>
                 <Wordmark tone="light" className="text-base" />
               </p>
-              <p className="mt-3 text-sm leading-relaxed text-brand-100/70">
-                India's trusted marketplace for verified home-visit care — nurses, physiotherapists, lab
+              <p className="mt-4 text-sm leading-relaxed text-brand-100/70">
+                India&apos;s trusted marketplace for verified home-visit care — nurses, physiotherapists, lab
                 technicians, nannies and caregivers, right at your doorstep.
               </p>
-              <p className="mt-2 text-xs text-brand-100/50">
+              <p className="mt-3 text-xs leading-relaxed text-brand-100/50">
                 Not a medical provider. For emergencies dial{" "}
                 <a className="font-semibold text-white underline underline-offset-2" href="tel:112">112</a>.
               </p>
             </div>
 
-            {/* Link columns */}
-            <div className="flex flex-wrap gap-10 text-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">Platform</p>
-                <ul className="mt-3 space-y-2">
-                  <li><Link href="/discover" className="text-brand-100/70 transition-colors hover:text-white">Find care</Link></li>
-                  <li><Link href="/services" className="text-brand-100/70 transition-colors hover:text-white">Services</Link></li>
-                  <li><Link href="/bookings" className="text-brand-100/70 transition-colors hover:text-white">My bookings</Link></li>
-                  <li><Link href="/login" className="text-brand-100/70 transition-colors hover:text-white">Sign in</Link></li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">Legal</p>
-                <ul className="mt-3 space-y-2">
-                  <li><Link href="/privacy" className="text-brand-100/70 transition-colors hover:text-white">Privacy policy</Link></li>
-                  <li><Link href="/terms" className="text-brand-100/70 transition-colors hover:text-white">Terms of service</Link></li>
-                  <li><Link href="/contact" className="text-brand-100/70 transition-colors hover:text-white">Contact us</Link></li>
-                </ul>
-              </div>
-            </div>
+            <FooterColumn title="Platform">
+              <FooterLink href="/discover">Find care</FooterLink>
+              <FooterLink href="/services">Services</FooterLink>
+              <FooterLink href="/bookings">My bookings</FooterLink>
+              <FooterLink href="/login">Sign in</FooterLink>
+            </FooterColumn>
+
+            <FooterColumn title="Legal">
+              <FooterLink href="/privacy">Privacy policy</FooterLink>
+              <FooterLink href="/terms">Terms of service</FooterLink>
+              <FooterLink href="/contact">Contact us</FooterLink>
+            </FooterColumn>
+
+            <FooterColumn title="Get in touch">
+              <li>
+                <a href="tel:+919653030683" className="flex items-center gap-2 text-brand-100/70 transition-colors hover:text-white">
+                  <Phone aria-hidden className="size-4 shrink-0 text-brand-400" />
+                  +91 96530 30683
+                </a>
+              </li>
+              <li>
+                <a href="mailto:healtnestbharat@gmail.com" className="flex items-start gap-2 break-all text-brand-100/70 transition-colors hover:text-white">
+                  <Mail aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-400" />
+                  healtnestbharat@gmail.com
+                </a>
+              </li>
+              <li className="pt-1 text-xs text-brand-100/50">Mon – Sat, 9 am – 7 pm IST</li>
+            </FooterColumn>
           </div>
         </div>
       </footer>

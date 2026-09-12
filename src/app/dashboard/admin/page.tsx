@@ -12,7 +12,6 @@ import {
   VerificationDecision,
   VerificationSelect,
 } from "@/components/dashboard/admin-controls";
-import { SwitchRole } from "@/components/dashboard/switch-role";
 import { ProviderAvatar } from "@/components/provider-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, SectionHeading } from "@/components/ui/card";
@@ -62,13 +61,17 @@ function applicationRows(application: VerificationApplication): [string, string]
 export default async function AdminDashboardPage() {
   const session = await getSession();
 
+  // No "continue as admin" button: staff sign in at /staff with ADMIN_PASSCODE. Nothing here reveals whether
+  // that page exists or what it needs.
   if (session.role !== "admin") {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
         <h1 className="text-2xl font-extrabold">Admin</h1>
-        <p className="mt-2 text-ink-muted">This area requires the admin role. The demo uses mock login.</p>
+        <p className="mt-2 text-ink-muted">This area is for HealNest staff. Sign in with your staff account to continue.</p>
         <Card className="mt-6 p-6">
-          <SwitchRole role="admin" label="Continue as admin" />
+          <Link href="/" className="font-semibold text-brand-700 underline underline-offset-2">
+            Back to HealNest Bharat
+          </Link>
         </Card>
       </div>
     );

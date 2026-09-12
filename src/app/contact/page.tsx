@@ -6,6 +6,17 @@ export const metadata: Metadata = {
   description: "Reach out to the HealNest Bharat team for support, partnership enquiries or general questions.",
 };
 
+/** lucide-react dropped brand marks, so the Instagram glyph is drawn inline. */
+function Instagram({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1.0" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export default function ContactPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -41,6 +52,22 @@ export default function ContactPage() {
             className="mt-2 block text-sm font-semibold text-brand-700 hover:underline"
           >
             healtnestbharat@gmail.com
+          </a>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-white p-6 shadow-sm">
+          <span className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700">
+            <Instagram className="size-5" />
+          </span>
+          <h2 className="mt-3 font-semibold text-ink">Instagram</h2>
+          <p className="mt-1 text-sm text-ink-muted">Follow us for updates</p>
+          <a
+            href="https://www.instagram.com/freakin_doc?stkn=MWMzaWx5a242cnQ1dA=="
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 block text-sm font-semibold text-brand-700 hover:underline"
+          >
+            @freakin_doc
           </a>
         </div>
 

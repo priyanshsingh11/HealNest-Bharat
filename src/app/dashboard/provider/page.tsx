@@ -88,8 +88,8 @@ function VerificationCallout({ status, underReview }: { status: VerificationStat
 }
 
 export default async function ProviderDashboardPage() {
-  const { session, repo, provider, pickerOptions } = await getProviderDashboard();
-  if (!provider) return <ProviderGate pickerOptions={pickerOptions} missing={session.role === "provider"} />;
+  const { session, repo, provider } = await getProviderDashboard();
+  if (!provider) return <ProviderGate missing={session.role === "provider"} />;
 
   const now = new Date();
   const today = istDayKey(now.toISOString());
@@ -130,7 +130,7 @@ export default async function ProviderDashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <ProviderDashboardHeader provider={provider} pickerOptions={pickerOptions} eyebrow="Provider dashboard" />
+      <ProviderDashboardHeader provider={provider} eyebrow="Provider dashboard" />
 
       {provider.verificationStatus !== "verified" && (
         <VerificationCallout status={provider.verificationStatus} underReview={applications.length > 0} />
