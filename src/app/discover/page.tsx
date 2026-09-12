@@ -1,14 +1,15 @@
 import { Info, MapPin, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CategoryIcon } from "@/components/category-meta";
+import { CareServiceIcon, CategoryIcon } from "@/components/category-meta";
 import { DiscoverLocationBar } from "@/components/discover-location-bar";
 import { EmergencyBanner } from "@/components/emergency-banner";
 import { MapPanel } from "@/components/map-panel";
 import { ProviderCard } from "@/components/provider-card";
+import { AutoScrollRow } from "@/components/auto-scroll-row";
 import { ProviderFilters } from "@/components/provider-filters";
 import { ButtonLink } from "@/components/ui/button";
-import { findCareService } from "@/lib/care-services";
+import { CARE_SERVICES, findCareService } from "@/lib/care-services";
 import { bookableCategories } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { getRepository } from "@/lib/db";
@@ -17,6 +18,10 @@ import { listLanguages, searchProviders } from "@/lib/services/discovery";
 import { providerSearchSchema } from "@/lib/validations";
 
 export const metadata: Metadata = { title: "Find care nearby" };
+
+const chipClass = "inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold whitespace-nowrap transition";
+const chipOnClass = "border-brand-700 bg-brand-700 text-white";
+const chipOffClass = "border-line bg-white text-ink hover:border-brand-300 hover:text-brand-700";
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -31,6 +36,8 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
   const activeCategories = bookableCategories(categories);
   const selected = activeCategories.find((c) => c.id === params.category);
   const careService = findCareService(params.service);
+  /** With a category chosen, only the services that category actually provides are offered. */
+  const offeredServices = selected ? CARE_SERVICES.filter((s) => s.providedBy.includes(selected.id)) : CARE_SERVICES;
 
   const locationQuery = location ? { lat: location.latitude, lng: location.longitude, label: location.label } : {};
   const discovery = location ? await searchProviders(repo, params) : null;
@@ -65,43 +72,80 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
           />
         </div>
 
-        {/* On phones the row scrolls sideways; the fade on the right hints there is more. */}
-        <nav
-          aria-label="Categories"
-          className="mt-6 -mx-4 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_85%,transparent)] sm:mx-0 sm:px-0 sm:[mask-image:none]"
-        >
-          <ul className="flex w-max gap-2 pr-4 sm:w-auto sm:flex-wrap sm:pr-0">
-            <li>
-              <Link
-                href={`/discover${toQuery(locationQuery)}`}
-                aria-current={!selected ? "page" : undefined}
-                className={cn(
-                  "inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold whitespace-nowrap",
-                  !selected ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white text-ink hover:border-brand-300",
-                )}
-              >
-                All care
-              </Link>
-            </li>
-            {activeCategories.map((category) => (
-              <li key={category.id}>
-                <Link
-                  href={`/discover${toQuery({ ...locationQuery, category: category.id })}`}
-                  aria-current={selected?.id === category.id ? "page" : undefined}
-                  className={cn(
-                    "inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold whitespace-nowrap",
-                    selected?.id === category.id
-                      ? "border-brand-700 bg-brand-700 text-white"
-                      : "border-line bg-white text-ink hover:border-brand-300",
-                  )}
-                >
-                  <CategoryIcon category={category.id} className="size-4" />
-                  {category.shortName}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {/* Scope pickers: who can help, then what they should do. Both rows scroll sideways on
+            phones — by hand, and drifting on their own between swipes, with a fade on the right
+            hinting there is more. Links carry the current filters through so switching scope does
+            not throw away a price or rating the user just set. */}
+        <div className="mt-6 space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-bold tracking-wider text-ink-muted uppercase">Who can help</p>
+            <AutoScrollRow
+              label="Provider categories"
+              className="-mx-4 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_85%,transparent)] sm:mx-0 sm:px-0 sm:[mask-image:none]"
+            >
+              <ul className="flex w-max gap-2 pr-4 sm:w-auto sm:flex-wrap sm:pr-0">
+                <li>
+                  <Link
+                    href={`/discover${toQuery({ ...raw, category: undefined })}`}
+                    aria-current={!selected ? "page" : undefined}
+                    className={cn(chipClass, !selected ? chipOnClass : chipOffClass)}
+                  >
+                    All care
+                  </Link>
+                </li>
+                {activeCategories.map((category) => (
+                  <li key={category.id}>
+                    <Link
+                      href={`/discover${toQuery({ ...raw, category: category.id, service: undefined })}`}
+                      aria-current={selected?.id === category.id ? "page" : undefined}
+                      className={cn(chipClass, "gap-2", selected?.id === category.id ? chipOnClass : chipOffClass)}
+                    >
+                      <CategoryIcon category={category.id} className="size-4" />
+                      {category.shortName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </AutoScrollRow>
+          </div>
+
+          {/* Hidden for a category with no services mapped to it, rather than showing a lone "Any service". */}
+          <div className={cn(offeredServices.length === 0 && "hidden")}>
+            <p className="mb-2 text-xs font-bold tracking-wider text-ink-muted uppercase">What you need</p>
+            <AutoScrollRow
+              label="Care services"
+              className="-mx-4 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_85%,transparent)] sm:mx-0 sm:px-0 sm:[mask-image:none]"
+            >
+              <ul className="flex w-max gap-2 pr-4 sm:w-auto sm:flex-wrap sm:pr-0">
+                <li>
+                  <Link
+                    href={`/discover${toQuery({ ...raw, service: undefined })}`}
+                    aria-current={!careService ? "page" : undefined}
+                    className={cn(chipClass, !careService ? chipOnClass : chipOffClass)}
+                  >
+                    Any service
+                  </Link>
+                </li>
+                {offeredServices.map((service) => {
+                  const isOn = careService?.id === service.id;
+                  return (
+                    <li key={service.id}>
+                      <Link
+                        href={`/discover${toQuery({ ...raw, service: service.id })}`}
+                        aria-current={isOn ? "page" : undefined}
+                        title={service.summary}
+                        className={cn(chipClass, "gap-2", isOn ? chipOnClass : chipOffClass)}
+                      >
+                        <CareServiceIcon service={service.id} className={cn("size-4", !isOn && "text-brand-600")} />
+                        {service.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </AutoScrollRow>
+          </div>
+        </div>
 
         {!parsed.success && (
           <p role="status" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
@@ -118,11 +162,11 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
             <p className="mt-1 text-sm text-ink-muted">Search your area above or use your current location.</p>
           </div>
         ) : (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[17rem_1fr]">
-            <ProviderFilters current={raw} languages={languages} />
-
+          <div className="mt-6">
             <section aria-labelledby="results-heading" className="min-w-0">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <ProviderFilters current={raw} languages={languages} resultCount={discovery.results.length} />
+
+              <div className="mt-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                 <h2 id="results-heading" className="font-bold text-ink" aria-live="polite">
                   {discovery.results.length} {discovery.results.length === 1 ? "provider" : "providers"} available
                 </h2>

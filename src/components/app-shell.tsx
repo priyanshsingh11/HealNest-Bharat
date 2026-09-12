@@ -178,11 +178,6 @@ export async function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-
-          {/* Bottom bar */}
-          <div className="mt-8 border-t border-brand-700/50 pt-5 text-xs text-brand-100/40">
-            © {new Date().getFullYear()} HealNest Bharat Pvt. Ltd. · CIN U85100UP2024PTC123456 · Made with ❤️ in India
-          </div>
         </div>
       </footer>
     </>
