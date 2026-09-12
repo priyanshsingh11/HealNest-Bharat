@@ -3,10 +3,10 @@
 import { ArrowRight, Check, HeartHandshake, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CategoryIcon, KIND_TILE, VerificationBadge } from "@/components/category-meta";
+import { CategoryIcon, ComingSoonBadge, KIND_TILE, VerificationBadge } from "@/components/category-meta";
 import { CreateAccountForm } from "@/components/create-account-form";
 import { Button } from "@/components/ui/button";
-import { categoryKind, PROFESSION_LABELS } from "@/lib/categories";
+import { categoryKind, isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
 import { apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
 import type { CategoryId, Role, VerificationStatus } from "@/types";
@@ -29,13 +29,13 @@ const ACCOUNT_TYPES: { value: AccountType; title: string; body: string; icon: Lu
   {
     value: "customer",
     title: "Customer",
-    body: "Book home nursing, physiotherapy, lab tests, nannies, caregivers and more for yourself or your family.",
+    body: "Book home nursing, physiotherapy, nannies, caregivers and more for yourself or your family.",
     icon: UserRound,
   },
   {
     value: "caretaker",
     title: "Caretaker",
-    body: "Nurses, nannies, caregivers, physiotherapists and lab technicians who provide care at home.",
+    body: "Nurses, nannies, caregivers and physiotherapists who provide care at home.",
     icon: HeartHandshake,
   },
 ];
@@ -86,8 +86,9 @@ export function LoginForm({ customers, caretakers, professions, initialType, nex
   const [type, setType] = useState<AccountType>(initialType);
   const [mode, setMode] = useState<AccountMode>("existing");
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
-  const [profession, setProfession] = useState<CategoryId>(professions[0]);
-  const [providerId, setProviderId] = useState(() => caretakers.find((c) => c.category === professions[0])?.id ?? "");
+  const openProfessions = professions.filter((id) => !isComingSoon(id));
+  const [profession, setProfession] = useState<CategoryId>(openProfessions[0] ?? professions[0]);
+  const [providerId, setProviderId] = useState(() => caretakers.find((c) => c.category === (openProfessions[0] ?? professions[0]))?.id ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -217,24 +218,49 @@ export function LoginForm({ customers, caretakers, professions, initialType, nex
             <fieldset className="mt-4">
               <legend className="text-sm font-semibold text-ink">What kind of care do you provide?</legend>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {professions.map((id) => (
-                  // Phones: icon above the label, so long names like "Physiotherapist" fit the half-width tile.
-                  <label key={id} className={cn(OPTION_CARD, "flex-col items-start gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:gap-2.5")}>
-                    <input
-                      type="radio"
-                      name="profession"
-                      value={id}
-                      checked={profession === id}
-                      onChange={() => chooseProfession(id)}
-                      className="sr-only"
-                      data-testid={`profession-${id}`}
-                    />
-                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", KIND_TILE[categoryKind(id)])}>
-                      <CategoryIcon category={id} className="size-5" />
-                    </span>
-                    <span className="min-w-0 text-sm font-semibold break-words text-ink">{PROFESSION_LABELS[id]}</span>
-                  </label>
-                ))}
+                {professions.map((id) => {
+                  const soon = isComingSoon(id);
+                  return (
+                    // Phones: icon above the label, so long names like "Physiotherapist" fit the half-width tile.
+                    <label
+                      key={id}
+                      className={cn(
+                        OPTION_CARD,
+                        "flex-col items-start gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:gap-2.5",
+                        soon && "cursor-not-allowed border-dashed bg-canvas shadow-none hover:border-line",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="profession"
+                        value={id}
+                        checked={profession === id}
+                        disabled={soon}
+                        onChange={() => chooseProfession(id)}
+                        className="sr-only"
+                        data-testid={`profession-${id}`}
+                      />
+                      <span
+                        className={cn(
+                          "grid size-9 shrink-0 place-items-center rounded-lg",
+                          soon ? "bg-white text-ink-muted" : KIND_TILE[categoryKind(id)],
+                        )}
+                      >
+                        <CategoryIcon category={id} className="size-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className={cn("block text-sm font-semibold break-words", soon ? "text-ink-muted" : "text-ink")}>
+                          {PROFESSION_LABELS[id]}
+                        </span>
+                        {soon && (
+                          <span className="mt-1 block">
+                            <ComingSoonBadge />
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
             <ModeSwitch mode={mode} onChange={setMode} />

@@ -3,14 +3,15 @@ import path from "node:path";
 import { ArrowDown, BadgeCheck, HeartHandshake, Lock, Plus, Receipt, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { CategoryIcon } from "@/components/category-meta";
+import { CategoryIcon, ComingSoonBadge } from "@/components/category-meta";
 import { EmergencyBanner } from "@/components/emergency-banner";
 import { HomeSearch } from "@/components/home-search";
 import { Marquee } from "@/components/marquee";
+import { NursingScope } from "@/components/nursing-scope";
 import { ButtonLink } from "@/components/ui/button";
 import { isSignedIn } from "@/lib/auth";
-import { CARE_SERVICES } from "@/lib/care-services";
-import { PROFESSION_LABELS } from "@/lib/categories";
+import { AVAILABLE_CARE_SERVICES } from "@/lib/care-services";
+import { bookableCategories, isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { getRepository } from "@/lib/db";
 import { initials } from "@/lib/formatters";
@@ -176,7 +177,8 @@ export default async function HomePage() {
   ]);
 
   const active = categories.filter((c) => c.active);
-  const activeIds = new Set(active.map((c) => c.id));
+  const bookable = bookableCategories(categories);
+  const activeIds = new Set(bookable.map((c) => c.id));
   const verified = providers.filter((p) => p.active && p.verificationStatus === "verified" && activeIds.has(p.category));
   const reviewTotal = verified.reduce((sum, p) => sum + p.reviewCount, 0);
   const team = HERO_TEAM.map((category) =>
@@ -204,8 +206,8 @@ export default async function HomePage() {
             {/* Centred under the headline on small screens; a left column beside the portraits on desktop. */}
             <div className="order-2 flex flex-col items-center space-y-6 text-center lg:order-1 lg:items-start lg:self-center lg:pb-16 lg:text-left">
               <p className="max-w-md text-lg leading-relaxed text-ink-muted lg:max-w-xs">
-                Home nursing, injections & IV, physiotherapy, elderly care and lab tests — from verified professionals near
-                you, with every rupee explained before you book.
+                Home nursing, injections & IV, physiotherapy and elderly care — from verified professionals near you, with
+                every rupee explained before you book. Home lab collection is coming soon.
               </p>
               <a href="#find-care" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:underline">
                 Find a verified professional <ArrowDown aria-hidden className="size-4" />
@@ -233,7 +235,7 @@ export default async function HomePage() {
               {verified.length > 0 && (
                 <Stat value={compactCount(verified.length)} label="Verified professionals" className="lg:hidden" />
               )}
-              <Stat value={String(CARE_SERVICES.length)} label="Home care services" />
+              <Stat value={String(AVAILABLE_CARE_SERVICES.length)} label="Home care services" />
               {reviewTotal > 0 && <Stat value={compactCount(reviewTotal)} label="Reviews from families" />}
             </dl>
           </div>
@@ -252,18 +254,28 @@ export default async function HomePage() {
       <section aria-label="Care professionals on HealNest Bharat" className="border-b border-line bg-white pt-16 pb-10">
         <Marquee>
           {(hidden) =>
-            active.map((category) => (
-              <li key={category.id} className="shrink-0 px-4 sm:px-6">
-                <Link
-                  href={`/discover${toQuery({ category: category.id })}`}
-                  tabIndex={hidden ? -1 : undefined}
-                  className="flex items-center gap-2.5 py-2 text-lg font-bold whitespace-nowrap text-ink-muted transition-colors hover:text-brand-700 sm:text-xl"
-                >
-                  <CategoryIcon category={category.id} className="size-6 text-brand-600" />
-                  {PROFESSION_PLURALS[category.id]}
-                </Link>
-              </li>
-            ))
+            active.map((category) =>
+              isComingSoon(category.id) ? (
+                <li key={category.id} className="shrink-0 px-4 sm:px-6">
+                  <span className="flex items-center gap-2.5 py-2 text-lg font-bold whitespace-nowrap text-ink-muted/70 sm:text-xl">
+                    <CategoryIcon category={category.id} className="size-6 text-brand-600/60" />
+                    {PROFESSION_PLURALS[category.id]}
+                    <ComingSoonBadge />
+                  </span>
+                </li>
+              ) : (
+                <li key={category.id} className="shrink-0 px-4 sm:px-6">
+                  <Link
+                    href={`/discover${toQuery({ category: category.id })}`}
+                    tabIndex={hidden ? -1 : undefined}
+                    className="flex items-center gap-2.5 py-2 text-lg font-bold whitespace-nowrap text-ink-muted transition-colors hover:text-brand-700 sm:text-xl"
+                  >
+                    <CategoryIcon category={category.id} className="size-6 text-brand-600" />
+                    {PROFESSION_PLURALS[category.id]}
+                  </Link>
+                </li>
+              ),
+            )
           }
         </Marquee>
       </section>
@@ -277,6 +289,8 @@ export default async function HomePage() {
         </div>
         <HomeSearch categories={active} />
       </section>
+
+      <NursingScope />
 
       <section aria-labelledby="how-heading" className="border-t border-line bg-white">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">

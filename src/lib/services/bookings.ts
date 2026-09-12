@@ -1,4 +1,5 @@
 import { canActorTransition, STATUS_LABELS } from "@/lib/booking-status";
+import { isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
 import { AppError, conflict, forbidden, notFound, unprocessable } from "@/lib/errors";
 import { roundedDistanceKm } from "@/lib/geo";
 import type { CareRepository } from "@/lib/repository/types";
@@ -38,6 +39,9 @@ export async function createBooking(
   if (!provider || !provider.active) throw notFound("Provider");
   if (provider.verificationStatus !== "verified") {
     throw unprocessable("This provider has not completed verification yet and cannot accept bookings.");
+  }
+  if (isComingSoon(provider.category)) {
+    throw unprocessable(`${PROFESSION_LABELS[provider.category]} visits are coming soon and can't be booked yet.`);
   }
   if (!categories.find((c) => c.id === provider.category)?.active) {
     throw unprocessable("This category is temporarily unavailable.");

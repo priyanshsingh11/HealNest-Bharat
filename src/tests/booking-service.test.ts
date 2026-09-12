@@ -70,10 +70,16 @@ describe("searchProviders", () => {
   });
 
   it("applies the verified-only filter", async () => {
-    const all = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "phlebotomist" }, NOW);
-    const verified = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "phlebotomist", verifiedOnly: true }, NOW);
+    const all = await searchProviders(repo, { ...connaughtPlace }, NOW);
+    const verified = await searchProviders(repo, { ...connaughtPlace, verifiedOnly: true }, NOW);
     expect(all.results.some((r) => r.provider.verificationStatus !== "verified")).toBe(true);
+    expect(verified.results.length).toBeGreaterThan(0);
     expect(verified.results.every((r) => r.provider.verificationStatus === "verified")).toBe(true);
+  });
+
+  it("hides providers in a coming-soon category", async () => {
+    const { results } = await searchProviders(repo, { lat: 28.5708, lng: 77.3261, category: "phlebotomist" }, NOW);
+    expect(results).toEqual([]);
   });
 
   it("sorts by rating when requested", async () => {

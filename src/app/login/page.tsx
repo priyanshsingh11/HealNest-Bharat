@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BrandMark } from "@/components/brand-logo";
 import { LoginForm, type CaretakerOption, type CustomerOption } from "@/components/login-form";
+import { bookableCategories, isComingSoon } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
 import { flattenParams } from "@/lib/location";
@@ -35,7 +36,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(({ id, name, email }) => ({ id, name, email }));
 
-  const activeCategories = new Set(categories.filter((c) => c.active).map((c) => c.id));
+  const activeCategories = new Set(bookableCategories(categories).map((c) => c.id));
   const caretakers: CaretakerOption[] = providers
     .filter((p) => p.active && activeCategories.has(p.category))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -55,7 +56,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
         <LoginForm
           customers={customers}
           caretakers={caretakers}
-          professions={PROFESSION_ORDER.filter((id) => activeCategories.has(id))}
+          professions={PROFESSION_ORDER.filter((id) => activeCategories.has(id) || isComingSoon(id))}
           initialType={params.as === "caretaker" ? "caretaker" : "customer"}
           next={safeNext(params.next)}
           demoEnabled={demoToolsEnabled()}

@@ -1,3 +1,4 @@
+import { isComingSoon } from "@/lib/categories";
 import type { CareServiceId, CategoryId } from "@/types";
 
 export type CareService = {
@@ -11,6 +12,8 @@ export type CareService = {
   providedBy: CategoryId[];
   /** Safety or scope note shown with the service, if any. */
   note?: string;
+  /** Optional expandable scope list shown on the service catalogue. */
+  scope?: { title: string; description: string }[];
 };
 
 export const CARE_SERVICES: CareService[] = [
@@ -21,6 +24,16 @@ export const CARE_SERVICES: CareService[] = [
     description: "A registered nurse at home for routine nursing care, vitals monitoring and day or night shifts.",
     includes: ["Vitals: BP, pulse, SpO₂, temperature, sugar", "Medication reminders as prescribed", "12-hour day or night nursing shifts"],
     providedBy: ["nurse"],
+    scope: [
+      { title: "Patient Monitoring", description: "BP, pulse, temperature, SpO₂, respiratory rate, blood sugar, consciousness, pain and overall condition; prompt reporting of deterioration." },
+      { title: "Medication & Treatment", description: "Prescribed medicines, injections, IV fluids, insulin and nebulization; medication scheduling and monitoring." },
+      { title: "Basic Nursing Care", description: "Personal hygiene, oral care, feeding, changing clothes/linen, positioning, pressure-sore prevention and mobility assistance." },
+      { title: "Catheter/Tube Care", description: "Foley catheter, NG/feeding tube, drains, tracheostomy and ostomy care, including urine-output monitoring." },
+      { title: "Wound Care", description: "Dressing, postoperative and pressure-ulcer care, infection monitoring and aseptic technique." },
+      { title: "Respiratory Care", description: "Oxygen therapy, nebulization, suctioning and tracheostomy care as per patient requirements and nurse competency." },
+      { title: "Nutrition & Elimination", description: "Feeding, tube feeding, intake/output monitoring, diaper changes and bowel/bladder care." },
+      { title: "Documentation", description: "Nursing notes, vital/medication/intake-output records and communication of significant changes in the patient’s condition." },
+    ],
   },
   {
     id: "injection-iv",
@@ -86,3 +99,11 @@ export const CARE_SERVICES: CareService[] = [
 export function findCareService(id: string | null | undefined): CareService | undefined {
   return CARE_SERVICES.find((service) => service.id === id);
 }
+
+/** True while every profession that provides this service is still "Coming soon". */
+export function isCareServiceComingSoon(service: CareService): boolean {
+  return service.providedBy.every((category) => isComingSoon(category));
+}
+
+/** Services that can actually be booked today — use this for counts shown to customers. */
+export const AVAILABLE_CARE_SERVICES = CARE_SERVICES.filter((service) => !isCareServiceComingSoon(service));

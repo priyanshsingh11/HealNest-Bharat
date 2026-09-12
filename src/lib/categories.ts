@@ -44,6 +44,22 @@ export const DEFAULT_CATEGORIES: Category[] = [
   },
 ];
 
+/**
+ * Professions shown on the site as "Coming soon": announced, but not open for
+ * bookings or caretaker sign-ups yet. Remove an id from here to launch it.
+ * This is separate from a category's `active` flag, which admins toggle to pause a live category.
+ */
+export const COMING_SOON_CATEGORIES: readonly CategoryId[] = ["phlebotomist"];
+
+export function isComingSoon(id: CategoryId): boolean {
+  return COMING_SOON_CATEGORIES.includes(id);
+}
+
+/** Categories that can be browsed and booked now: switched on by an admin and past "coming soon". */
+export function bookableCategories<T extends { id: CategoryId; active: boolean }>(categories: readonly T[]): T[] {
+  return categories.filter((category) => category.active && !isComingSoon(category.id));
+}
+
 /** How care professionals describe themselves, e.g. when logging in as a caretaker. */
 export const PROFESSION_LABELS: Record<CategoryId, string> = {
   nurse: "Nurse",
@@ -71,7 +87,8 @@ export function isMedical(id: CategoryId): boolean {
   return categoryKind(id) === "medical";
 }
 
-/** False for switched-off categories, whose providers are hidden and can't be booked. */
+/** False for switched-off and not-yet-launched categories, whose providers are hidden and can't be booked. */
 export async function isCategoryActive(repo: Pick<CareRepository, "listCategories">, id: CategoryId): Promise<boolean> {
+  if (isComingSoon(id)) return false;
   return (await repo.listCategories()).some((category) => category.id === id && category.active);
 }

@@ -1,10 +1,11 @@
 import { ArrowRight, Check, Info } from "lucide-react";
 import type { Metadata } from "next";
-import { CareServiceIcon, CategoryIcon } from "@/components/category-meta";
+import { CareServiceIcon, CategoryIcon, ComingSoonBadge } from "@/components/category-meta";
 import { EmergencyBanner } from "@/components/emergency-banner";
+import { ServiceScopeAccordion } from "@/components/service-scope-accordion";
 import { ButtonLink } from "@/components/ui/button";
-import { CARE_SERVICES } from "@/lib/care-services";
-import { categoryName } from "@/lib/categories";
+import { AVAILABLE_CARE_SERVICES, CARE_SERVICES, isCareServiceComingSoon } from "@/lib/care-services";
+import { bookableCategories, categoryName, isComingSoon } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { formatMoney } from "@/lib/formatters";
 import { toQuery } from "@/lib/location";
@@ -21,7 +22,7 @@ export default async function ServicesPage() {
     repo.getPlatformConfig(),
   ]);
   const activeProviders = new Set(providers.filter((p) => p.active).map((p) => p.id));
-  const activeCategories = new Set(categories.filter((c) => c.active).map((c) => c.id));
+  const activeCategories = new Set(bookableCategories(categories).map((c) => c.id));
 
   /** Lowest visit fee across bookable listings, or null when nobody currently offers the service. */
   function startingPrice(id: CareServiceId): number | null {
@@ -40,8 +41,9 @@ export default async function ServicesPage() {
           <p className="text-sm font-bold uppercase tracking-wider text-brand-700">Our services</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Care at home, done properly.</h1>
           <p className="mt-3 max-w-3xl text-lg text-ink-muted">
-            Eight home services from verified nurses, physiotherapists, phlebotomists and caregivers. Prices below are
-            starting visit fees. Your full itemised quote appears before you confirm.
+            {AVAILABLE_CARE_SERVICES.length} home services from verified nurses, physiotherapists and caregivers, with{" "}
+            {CARE_SERVICES.length - AVAILABLE_CARE_SERVICES.length} more coming soon. Prices below are starting visit fees.
+            Your full itemised quote appears before you confirm.
           </p>
         </div>
       </section>
@@ -49,7 +51,8 @@ export default async function ServicesPage() {
       <div className="mx-auto max-w-7xl px-4 pt-8 pb-12 sm:px-6">
         <ul className="grid gap-4 md:grid-cols-2">
           {CARE_SERVICES.map((service) => {
-            const from = startingPrice(service.id);
+            const soon = isCareServiceComingSoon(service);
+            const from = soon ? null : startingPrice(service.id);
             return (
               <li key={service.id} id={service.id} className="flex scroll-mt-24 flex-col rounded-2xl border border-line bg-white p-6 shadow-sm">
                 <div className="flex items-start gap-4">
@@ -57,9 +60,12 @@ export default async function ServicesPage() {
                     <CareServiceIcon service={service.id} className="size-6" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-bold text-ink">{service.name}</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-bold text-ink">{service.name}</h2>
+                      {soon && <ComingSoonBadge />}
+                    </div>
                     <p className="text-sm font-semibold text-ink-muted">
-                      {from === null ? "Currently unavailable" : <>From {formatMoney(from)}</>}
+                      {soon ? "Not open for bookings yet" : from === null ? "Currently unavailable" : <>From {formatMoney(from)}</>}
                     </p>
                   </div>
                 </div>
@@ -82,15 +88,19 @@ export default async function ServicesPage() {
                   </p>
                 )}
 
+                {service.scope && <ServiceScopeAccordion items={service.scope} />}
+
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
                   <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-ink-muted">
                     <span className="uppercase tracking-wide">Provided by</span>
-                    {service.providedBy.filter((category) => activeCategories.has(category)).map((category) => (
-                      <span key={category} className="inline-flex items-center gap-1 text-ink">
-                        <CategoryIcon category={category} className="size-3.5" />
-                        {categoryName(category)}
-                      </span>
-                    ))}
+                    {service.providedBy
+                      .filter((category) => activeCategories.has(category) || isComingSoon(category))
+                      .map((category) => (
+                        <span key={category} className="inline-flex items-center gap-1 text-ink">
+                          <CategoryIcon category={category} className="size-3.5" />
+                          {categoryName(category)}
+                        </span>
+                      ))}
                   </p>
                   {from !== null && (
                     <ButtonLink size="sm" href={`/discover${toQuery({ service: service.id })}`} data-testid={`find-${service.id}`}>

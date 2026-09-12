@@ -8,6 +8,7 @@ import {
   Hourglass,
   HouseHeart,
   Pipette,
+  Rocket,
   PersonStanding,
   ShieldAlert,
   ShieldQuestion,
@@ -52,6 +53,16 @@ export const KIND_TILE: Record<CategoryKind, string> = {
 };
 
 const KIND_TONE = { medical: "medical", childcare: "childcare", non_medical: "care" } as const;
+
+/** Marks a profession or service that is announced but not open for bookings yet. */
+export function ComingSoonBadge({ className }: { className?: string }) {
+  return (
+    <Badge tone="warning" className={className}>
+      <Rocket aria-hidden className="size-3.5" />
+      Coming soon
+    </Badge>
+  );
+}
 
 /** Always shown next to a provider so medical and non-medical services can't be confused. */
 export function KindBadge({ category }: { category: CategoryId }) {

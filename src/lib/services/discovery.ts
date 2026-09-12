@@ -1,3 +1,4 @@
+import { bookableCategories } from "@/lib/categories";
 import { APP_TIME_ZONE } from "@/lib/formatters";
 import { roundedDistanceKm } from "@/lib/geo";
 import type { CareRepository } from "@/lib/repository/types";
@@ -59,7 +60,7 @@ export async function searchProviders(
     repo.listProviders(params.category ? { category: params.category } : undefined),
     repo.listCategories(),
   ]);
-  const activeCategories = new Set(categories.filter((c) => c.active).map((c) => c.id));
+  const activeCategories = new Set(bookableCategories(categories).map((c) => c.id));
   const candidates = providers.filter((p) => p.active && activeCategories.has(p.category));
   const ids = candidates.map((p) => p.id);
 

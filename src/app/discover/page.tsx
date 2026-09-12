@@ -9,6 +9,7 @@ import { ProviderCard } from "@/components/provider-card";
 import { ProviderFilters } from "@/components/provider-filters";
 import { ButtonLink } from "@/components/ui/button";
 import { findCareService } from "@/lib/care-services";
+import { bookableCategories } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { getRepository } from "@/lib/db";
 import { flattenParams, locationFromParams, toQuery } from "@/lib/location";
@@ -27,7 +28,7 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
 
   const repo = getRepository();
   const [categories, config, languages] = await Promise.all([repo.listCategories(), repo.getPlatformConfig(), listLanguages(repo)]);
-  const activeCategories = categories.filter((c) => c.active);
+  const activeCategories = bookableCategories(categories);
   const selected = activeCategories.find((c) => c.id === params.category);
   const careService = findCareService(params.service);
 

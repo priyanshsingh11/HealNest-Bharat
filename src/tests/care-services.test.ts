@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { CARE_SERVICES } from "@/lib/care-services";
-import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { AVAILABLE_CARE_SERVICES, CARE_SERVICES, isCareServiceComingSoon } from "@/lib/care-services";
+import { DEFAULT_CATEGORIES, isComingSoon } from "@/lib/categories";
 import { starterServicesFor } from "@/lib/platform-defaults";
 import { MemoryRepository } from "@/lib/repository/memory";
 import { searchProviders } from "@/lib/services/discovery";
@@ -43,9 +43,23 @@ describe("searchProviders by care service", () => {
     expect(new Set(results.map((r) => r.provider.category))).toEqual(new Set(["caregiver"]));
   });
 
-  it("finds home lab collection near a Bengaluru location", async () => {
+  it("returns nothing for a service whose only providers are coming soon", async () => {
     const { results } = await searchProviders(repo, { ...koramangala, service: "home-lab-collection" }, NOW);
-    expect(results.length).toBeGreaterThan(0);
-    expect(results.every((r) => r.provider.category === "phlebotomist")).toBe(true);
+    expect(results).toEqual([]);
+  });
+});
+
+describe("coming soon", () => {
+  it("marks lab technicians and home lab collection as coming soon", () => {
+    expect(isComingSoon("phlebotomist")).toBe(true);
+    expect(isCareServiceComingSoon(CARE_SERVICES.find((s) => s.id === "home-lab-collection")!)).toBe(true);
+  });
+
+  it("keeps every other profession bookable", () => {
+    for (const category of DEFAULT_CATEGORIES) {
+      if (category.id !== "phlebotomist") expect(isComingSoon(category.id)).toBe(false);
+    }
+    expect(AVAILABLE_CARE_SERVICES.map((s) => s.id)).not.toContain("home-lab-collection");
+    expect(AVAILABLE_CARE_SERVICES.length).toBe(CARE_SERVICES.length - 1);
   });
 });

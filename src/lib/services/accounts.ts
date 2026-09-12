@@ -1,4 +1,4 @@
-import { PROFESSION_LABELS } from "@/lib/categories";
+import { isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
 import { AppError, conflict, unprocessable } from "@/lib/errors";
 import { findLocality } from "@/lib/localities";
 import { CANCELLATION_BY_CATEGORY, starterServicesFor } from "@/lib/platform-defaults";
@@ -46,6 +46,9 @@ export async function checkNewAccount(repo: CareRepository, input: AccountCreate
     throw unprocessable("Choose where you are based from the list.");
   }
   const category = (await repo.listCategories()).find((c) => c.id === input.category);
+  if (isComingSoon(input.category)) {
+    throw unprocessable(`${PROFESSION_LABELS[input.category]} sign-ups open soon. We'll announce it on HealNest Bharat.`);
+  }
   if (!category?.active) throw unprocessable("This profession is not accepting new caretakers right now.");
 }
 
