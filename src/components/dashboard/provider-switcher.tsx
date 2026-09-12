@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/field";
 import { apiRequest } from "@/lib/client-api";
-import { listDeviceAccounts, type DeviceAccount } from "@/lib/device-accounts";
+import { useDeviceAccounts } from "@/lib/use-device-accounts";
 
 /**
  * Switches between the caretaker profiles registered on *this* device.
@@ -16,16 +16,13 @@ import { listDeviceAccounts, type DeviceAccount } from "@/lib/device-accounts";
 export function ProviderSwitcher({ currentProviderId }: { currentProviderId?: string | null }) {
   const id = useId();
   const router = useRouter();
-  const [accounts, setAccounts] = useState<DeviceAccount[]>([]);
-  const [providerId, setProviderId] = useState(currentProviderId ?? "");
+  const { accounts } = useDeviceAccounts("provider");
+  const [chosenId, setChosenId] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const saved = listDeviceAccounts("provider");
-    setAccounts(saved);
-    setProviderId((current) => current || (saved[0]?.providerId ?? ""));
-  }, []);
+  // Derived rather than stored, so the select is always valid even before the device list has loaded.
+  const providerId = chosenId || currentProviderId || accounts[0]?.providerId || "";
 
   async function switchTo(nextProviderId: string) {
     const account = accounts.find((a) => a.providerId === nextProviderId);
@@ -50,7 +47,7 @@ export function ProviderSwitcher({ currentProviderId }: { currentProviderId?: st
           id={id}
           value={providerId}
           onChange={(e) => {
-            setProviderId(e.target.value);
+            setChosenId(e.target.value);
             if (currentProviderId) void switchTo(e.target.value);
           }}
         >

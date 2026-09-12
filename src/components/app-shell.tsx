@@ -53,12 +53,12 @@ function BrandStrip({ className }: { className?: string }) {
   return <div aria-hidden className={`h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-leaf-500 ${className ?? ""}`} />;
 }
 
-/** One column of footer links: a label and a spaced list. */
+/** One footer column: a label with its links listed under it. */
 function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">{title}</p>
-      <ul className="mt-4 space-y-3 text-sm">{children}</ul>
+      <ul className="mt-3 space-y-2.5 text-sm">{children}</ul>
     </div>
   );
 }
@@ -155,8 +155,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <footer className="bg-brand-900 text-brand-100">
         <BrandStrip />
 
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1.3fr] lg:gap-12">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-[1.7fr_1fr_1fr_1.3fr]">
 
             {/* Brand + tagline */}
             <div className="sm:col-span-2 lg:col-span-1 lg:max-w-xs">
@@ -197,12 +197,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
                 </a>
               </li>
               <li>
-                <a href="mailto:healtnestbharat@gmail.com" className="flex items-start gap-2 break-all text-brand-100/70 transition-colors hover:text-white">
-                  <Mail aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-400" />
+                <a href="mailto:healtnestbharat@gmail.com" className="flex items-center gap-2 break-all text-brand-100/70 transition-colors hover:text-white">
+                  <Mail aria-hidden className="size-4 shrink-0 text-brand-400" />
                   healtnestbharat@gmail.com
                 </a>
               </li>
-              <li className="pt-1 text-xs text-brand-100/50">Mon – Sat, 9 am – 7 pm IST</li>
+              <li className="text-xs text-brand-100/50">Mon – Sat, 9 am – 7 pm IST</li>
             </FooterColumn>
           </div>
         </div>

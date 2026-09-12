@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100;
+/** Staff passcode for the test server. The admin dashboard is only reachable through /staff with this. */
+export const STAFF_PASSCODE = "test-staff-passcode";
 
 export default defineConfig({
   testDir: "./src/tests",
@@ -22,7 +24,7 @@ export default defineConfig({
   webServer: {
     // Production build + in-memory data source, so the smoke test never touches a real database
     // and doesn't clash with a `next dev` server already running in this folder.
-    command: `npm run build && DATA_SOURCE=memory npx next start -p ${PORT}`,
+    command: `npm run build && DATA_SOURCE=memory ADMIN_PASSCODE=${STAFF_PASSCODE} npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,

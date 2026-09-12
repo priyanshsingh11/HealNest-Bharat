@@ -23,8 +23,26 @@ No keys are needed: without Supabase credentials the app runs on an in-memory st
 pricing rules and platform settings plus a demo customer and admin, but **no providers** — caretakers sign up themselves.
 In-memory data resets when the dev server restarts.
 
-Try it: **Log in → Caretaker** and create a nurse based in **Saket**, add availability and submit verification. Switch to
-**Admin** to approve it. Then, as a customer, search **"Saket"**, pick **Home Nurse**, open the provider and request a visit.
+Try it: **Log in → Caretaker → New account** and create a nurse based in **Saket**, add availability and submit
+verification. Approve it as staff at **/staff** (see *Accounts and sign-in* below). Then, as a customer, search
+**"Saket"**, pick **Home Nurse**, open the provider and request a visit.
+
+## Accounts and sign-in
+
+Accounts are **bound to the device that created them**. Signing up issues a secret to that browser and stores only its
+SHA-256 hash (`account_devices`); logging in means presenting that secret. The login page therefore never lists who has
+an account — it shows only what this browser registered — so an account created on one machine is invisible and
+unreachable from every other one.
+
+Staff sign-in is separate: the admin dashboard has no account picker and nothing links to it. Staff go to **`/staff`**
+and enter `ADMIN_PASSCODE`. Leave that variable empty and staff sign-in is switched off entirely.
+
+Two consequences worth knowing:
+
+- Clearing a browser's site data removes its accounts from that browser. With no other registered device, the account
+  becomes unreachable — there is no email or OTP recovery yet.
+- Accounts created before this (and any left over from the old public account picker) have no registered device, so
+  nobody can sign into them. `npm run db:prune-accounts` lists them; add `-- --delete` to remove them.
 
 ## Scripts
 
@@ -37,6 +55,7 @@ Try it: **Log in → Caretaker** and create a nurse based in **Saket**, add avai
 | `npm run test` | Vitest unit tests (distance, pricing, state machine, booking service) |
 | `npm run test:e2e` | Playwright smoke test (desktop + mobile Chromium). First run: `npx playwright install chromium` |
 | `npm run db:seed` | Seed a Supabase project with categories, pricing rules, settings and the demo accounts |
+| `npm run db:prune-accounts` | List accounts no device can sign into; `-- --delete` removes them |
 
 ## Using Supabase
 
@@ -102,7 +121,8 @@ docs/                        # product-requirements.md, api-contracts.md
 
 ## Known limitations (MVP)
 
-- Mock login via a cookie role switcher — anyone can switch to admin. **Set `DEMO_TOOLS=false` and add real auth before deploying.**
+- Sign-in is device-bound rather than password- or OTP-based: a lost device means a lost account, and a device secret
+  copied out of one browser's localStorage works in another. Add real authentication (e.g. Supabase Auth) before launch.
 - Address search covers a fixed list of 18 localities; there is no real geocoder.
 - Rate limiting and the in-memory store are per-process (not shared across instances).
 - Supabase booking creation is several inserts with best-effort rollback, not a single transaction (move to a Postgres function for production).

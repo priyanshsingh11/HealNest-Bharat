@@ -2,7 +2,7 @@
   "name": "healnest-bharat",
   "version": "0.1.0",
   "private": true,
-  "description": "HealNest Bharat — discover and request verified home nurses, doctors, nannies and caregivers nearby.",
+  "description": "HealNest Bharat \u2014 discover and request verified home nurses, doctors, nannies and caregivers nearby.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed-supabase.ts"
+    "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed-supabase.ts",
+    "db:prune-accounts": "tsx --env-file-if-exists=.env.local scripts/prune-accounts.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

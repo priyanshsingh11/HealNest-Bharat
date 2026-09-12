@@ -1,11 +1,13 @@
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
+import { STAFF_PASSCODE } from "../../playwright.config";
 
 // End-to-end smoke test: location → category → provider → booking → confirmation.
 // Runs against the in-memory data source (see playwright.config.ts), which starts with no providers, so the suite first
 // signs up a nurse, opens her availability and has the admin verify her — all through the public API.
 
 const PHOTO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==";
-let nurse: { id: string; name: string };
+/** `token` is the device secret sign-up issued for this nurse; logging in as her requires presenting it. */
+let nurse: { id: string; name: string; token: string };
 
 /** IST calendar date, `days` from today. */
 function istDate(days: number): string {
@@ -23,7 +25,7 @@ test.beforeAll(async ({ playwright }, testInfo) => {
   const email = `nurse-${Date.now()}@example.test`;
   const phone = "9876543210";
 
-  const { session } = await json(
+  const { session, account } = await json(
     await api.post("/api/accounts", {
       data: { type: "caretaker", name, email, phone, category: "nurse", gender: "female", localityId: "del-cp", languages: ["Hindi", "English"], yearsExperience: 6 },
     }),
@@ -67,10 +69,10 @@ test.beforeAll(async ({ playwright }, testInfo) => {
     }),
   );
 
-  await json(await api.post("/api/session", { data: { role: "admin" } }));
+  await json(await api.post("/api/session", { data: { role: "admin", passcode: STAFF_PASSCODE } }));
   await json(await api.patch(`/api/admin/verification/${application.id}`, { data: { decision: "approve" } }));
   await api.dispose();
-  nurse = { id: providerId, name };
+  nurse = { id: providerId, name, token: account.token };
 });
 
 function collectConsoleErrors(page: Page) {
@@ -157,14 +159,60 @@ test("provider profile opens directly by URL", async ({ page }) => {
   await expect(page.getByText("Medical service", { exact: true }).first()).toBeVisible();
 });
 
-test("provider and admin dashboard demo routes load", async ({ page }) => {
+test("a caretaker dashboard needs this device's account", async ({ page }) => {
+  // No account registered in this browser: the dashboard offers nothing to open.
   await page.goto("/dashboard/provider");
   await expect(page.getByRole("heading", { name: "Provider dashboard" })).toBeVisible();
-  await page.getByRole("button", { name: "Open provider dashboard" }).click();
+  await expect(page.getByRole("button", { name: "Open provider dashboard" })).toHaveCount(0);
+
+  // The device secret from sign-up is what opens it.
+  await page.request.post("/api/session", { data: { role: "provider", providerId: nurse.id, deviceToken: nurse.token } });
+  await page.goto("/dashboard/provider");
   await expect(page.getByRole("heading", { name: /Incoming requests/ })).toBeVisible();
 
+  await page.context().clearCookies();
+});
+
+test("logging in as another account needs that account's device secret", async ({ page }) => {
+  // A well-formed secret that was never issued for this account, and the account id on its own, both fail.
+  const forged = "x".repeat(43);
+  for (const data of [
+    { role: "provider", providerId: nurse.id, deviceToken: forged },
+    { role: "provider", providerId: nurse.id },
+  ]) {
+    const response = await page.request.post("/api/session", { data });
+    expect(response.status()).toBe(403);
+  }
+
+  await page.goto("/dashboard/provider");
+  await expect(page.getByRole("heading", { name: "Provider dashboard" })).toBeVisible();
+  await page.context().clearCookies();
+});
+
+test("the login page never lists accounts", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByText("No customer account on this device")).toBeVisible();
+  await expect(page.getByText(nurse.name)).toHaveCount(0);
+
+  // The radio itself is sr-only, so click its card, the way a sighted user does.
+  await page.locator("label:has([data-testid=login-as-caretaker])").click();
+  await expect(page.getByText("No caretaker account on this device")).toBeVisible();
+  await expect(page.getByText(nurse.name)).toHaveCount(0);
+});
+
+test("the admin dashboard needs the staff passcode", async ({ page }) => {
+  // Nothing on the site links to /staff, and the dashboard itself hands out no way in.
   await page.goto("/dashboard/admin");
-  await page.getByRole("button", { name: "Continue as admin" }).click();
+  await expect(page.getByRole("heading", { name: "Provider verification" })).toHaveCount(0);
+
+  await page.goto("/staff");
+  await page.getByLabel("Staff passcode").fill("wrong-passcode");
+  await page.getByTestId("staff-login-submit").click();
+  // Not getByRole("alert"): Next's route announcer is one too.
+  await expect(page.getByText("That passcode is not correct.")).toBeVisible();
+
+  await page.getByLabel("Staff passcode").fill(STAFF_PASSCODE);
+  await page.getByTestId("staff-login-submit").click();
   await expect(page.getByRole("heading", { name: "Provider verification" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pricing rules & platform margin" })).toBeVisible();
 
@@ -173,7 +221,7 @@ test("provider and admin dashboard demo routes load", async ({ page }) => {
 });
 
 test("provider dashboard pages load", async ({ page }) => {
-  await page.request.post("/api/session", { data: { role: "provider", providerId: nurse.id } });
+  await page.request.post("/api/session", { data: { role: "provider", providerId: nurse.id, deviceToken: nurse.token } });
 
   await page.goto("/dashboard/provider");
   await expect(page.getByRole("heading", { name: "Today's patient queue" })).toBeVisible();

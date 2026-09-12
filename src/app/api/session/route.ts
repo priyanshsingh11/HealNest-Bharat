@@ -4,7 +4,7 @@ import { clearSessionCookies, setSessionCookies } from "@/lib/auth";
 import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
 import { deviceOwnsAccount } from "@/lib/devices";
-import { forbidden, notFound, unprocessable } from "@/lib/errors";
+import { forbidden, unprocessable } from "@/lib/errors";
 import { buildSession } from "@/lib/session";
 import { checkStaffPasscode, staffLoginConfigured } from "@/lib/staff";
 import { sessionSchema } from "@/lib/validations";

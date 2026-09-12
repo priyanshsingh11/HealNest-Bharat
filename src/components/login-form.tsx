@@ -2,14 +2,15 @@
 
 import { ArrowRight, Check, HeartHandshake, Laptop, UserRound, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { CategoryIcon, ComingSoonBadge, KIND_TILE } from "@/components/category-meta";
 import { CreateAccountForm } from "@/components/create-account-form";
 import { Button } from "@/components/ui/button";
 import { categoryKind, isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
 import { apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
-import { forgetDeviceAccount, listDeviceAccounts, type DeviceAccount } from "@/lib/device-accounts";
+import { forgetDeviceAccount, type DeviceAccount } from "@/lib/device-accounts";
+import { useDeviceAccounts } from "@/lib/use-device-accounts";
 import type { CategoryId } from "@/types";
 
 export type AccountType = "customer" | "caretaker";
@@ -96,7 +97,6 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
   const router = useRouter();
   const [type, setType] = useState<AccountType>(initialType);
   const [mode, setMode] = useState<AccountMode>("existing");
-  const [accounts, setAccounts] = useState<DeviceAccount[] | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const openProfessions = professions.filter((id) => !isComingSoon(id));
   const [profession, setProfession] = useState<CategoryId>(openProfessions[0] ?? professions[0]);
@@ -104,20 +104,12 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // localStorage is only readable in the browser, so the first render matches the server's empty list.
-  useEffect(() => setAccounts(listDeviceAccounts()), []);
-
   const role = type === "customer" ? "user" : "provider";
-  const saved = (accounts ?? []).filter((a) => a.role === role);
+  // Read straight from this browser's store; the server never sees or sends this list.
+  const { accounts: saved, hydrated } = useDeviceAccounts(role);
+  // Falling back to the first entry means the list always has a usable selection, including after a removal.
   const selected = saved.find((a) => a.id === selectedId) ?? saved[0];
   const busy = !demoEnabled || submitting || pending;
-  // Until the effect has run we don't know what this device has; don't flash the empty state at people.
-  const loaded = accounts !== null;
-
-  function drop(id: string) {
-    forgetDeviceAccount(id);
-    setAccounts(listDeviceAccounts());
-  }
 
   async function logIn(account: DeviceAccount) {
     setError(null);
@@ -142,7 +134,7 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
   // Called as a plain function rather than rendered as a nested component: a component declared inside another
   // component is a new type on every render, which would remount the radios and drop focus mid-click.
   function savedAccounts() {
-    if (!loaded) return <p className="mt-4 text-sm text-ink-muted">Checking this device…</p>;
+    if (!hydrated) return <p className="mt-4 text-sm text-ink-muted">Checking this device…</p>;
     if (saved.length === 0) return <NoAccounts type={type} onCreate={() => setMode("new")} />;
     return (
       <>
@@ -174,7 +166,7 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
                 </label>
                 <button
                   type="button"
-                  onClick={() => drop(account.id)}
+                  onClick={() => forgetDeviceAccount(account.id)}
                   aria-label={`Remove ${account.name} from this device`}
                   title="Remove from this device"
                   className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-muted transition hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-600/40"

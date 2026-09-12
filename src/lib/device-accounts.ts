@@ -61,9 +61,50 @@ export function listDeviceAccounts(role?: DeviceAccount["role"]): DeviceAccount[
 /** Adds an account after sign-up, replacing any earlier entry for the same id. */
 export function rememberDeviceAccount(account: DeviceAccount): void {
   writeStore([account, ...readStore().filter((a) => a.id !== account.id)]);
+  publish();
 }
 
 /** Removes an account from this device's list. The account itself is untouched. */
 export function forgetDeviceAccount(id: string): void {
   writeStore(readStore().filter((a) => a.id !== id));
+  publish();
+}
+
+// --- useSyncExternalStore plumbing -----------------------------------------------------------------
+//
+// localStorage is an external store, so components read it through useSyncExternalStore rather than an
+// effect that calls setState. The snapshot is cached because useSyncExternalStore compares by reference
+// and would loop forever on a freshly parsed array each call.
+
+const listeners = new Set<() => void>();
+let cached: DeviceAccount[] | null = null;
+/** The server renders no accounts; a stable reference keeps hydration from tearing. */
+const NONE: DeviceAccount[] = [];
+
+function publish(): void {
+  cached = null;
+  for (const listener of listeners) listener();
+}
+
+export function subscribeToDeviceAccounts(listener: () => void): () => void {
+  listeners.add(listener);
+  // Another tab signing up or removing an account writes to the same key.
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === KEY) publish();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+export function getDeviceAccountsSnapshot(): DeviceAccount[] {
+  cached ??= listDeviceAccounts();
+  return cached;
+}
+
+/** Server render and the first hydration pass: this device's list is unknowable there. */
+export function getDeviceAccountsServerSnapshot(): DeviceAccount[] {
+  return NONE;
 }
