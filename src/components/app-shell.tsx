@@ -134,27 +134,54 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
       <footer className="bg-brand-900 text-brand-100">
         <BrandStrip />
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 text-sm sm:px-6 md:grid-cols-2">
-          <div>
-            <p className="flex items-center gap-3">
-              <span className="grid size-12 place-items-center rounded-2xl bg-white p-1.5 shadow-sm">
-                <BrandMark className="h-full" />
-              </span>
-              <Wordmark tone="light" className="text-lg" />
-            </p>
-            <p className="mt-3 max-w-xl text-brand-100/90">
-              A marketplace for home-visit care services. We do not provide diagnosis, medical advice or emergency care.
-              For emergencies, dial <a className="font-semibold text-white underline" href="tel:112">112</a>.
-            </p>
+
+        {/* Main section */}
+        <div className="mx-auto max-w-7xl px-4 pt-10 pb-6 sm:px-6">
+          <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+
+            {/* Brand + tagline */}
+            <div className="max-w-sm">
+              <p className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-white p-1.5 shadow-sm">
+                  <BrandMark className="h-full" />
+                </span>
+                <Wordmark tone="light" className="text-base" />
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-brand-100/70">
+                India's trusted marketplace for verified home-visit care — nurses, physiotherapists, lab
+                technicians, nannies and caregivers, right at your doorstep.
+              </p>
+              <p className="mt-2 text-xs text-brand-100/50">
+                Not a medical provider. For emergencies dial{" "}
+                <a className="font-semibold text-white underline underline-offset-2" href="tel:112">112</a>.
+              </p>
+            </div>
+
+            {/* Link columns */}
+            <div className="flex flex-wrap gap-10 text-sm">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">Platform</p>
+                <ul className="mt-3 space-y-2">
+                  <li><Link href="/discover" className="text-brand-100/70 transition-colors hover:text-white">Find care</Link></li>
+                  <li><Link href="/services" className="text-brand-100/70 transition-colors hover:text-white">Services</Link></li>
+                  <li><Link href="/bookings" className="text-brand-100/70 transition-colors hover:text-white">My bookings</Link></li>
+                  <li><Link href="/login" className="text-brand-100/70 transition-colors hover:text-white">Sign in</Link></li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">Legal</p>
+                <ul className="mt-3 space-y-2">
+                  <li><Link href="/privacy" className="text-brand-100/70 transition-colors hover:text-white">Privacy policy</Link></li>
+                  <li><Link href="/terms" className="text-brand-100/70 transition-colors hover:text-white">Terms of service</Link></li>
+                  <li><Link href="/contact" className="text-brand-100/70 transition-colors hover:text-white">Contact us</Link></li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div className="text-brand-100/80 md:text-right">
-            <p>
-              MVP demo — providers, reviews and registration numbers are fictional. No real payments are taken.
-            </p>
-            <p className="mt-1">
-              Data source:{" "}
-              <span className="font-semibold text-white">{repo.kind === "supabase" ? "Supabase" : "In-memory demo data"}</span>
-            </p>
+
+          {/* Bottom bar */}
+          <div className="mt-8 border-t border-brand-700/50 pt-5 text-xs text-brand-100/40">
+            © {new Date().getFullYear()} HealNest Bharat Pvt. Ltd. · CIN U85100UP2024PTC123456 · Made with ❤️ in India
           </div>
         </div>
       </footer>
