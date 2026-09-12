@@ -263,6 +263,28 @@ function createApplications(now: Date, users: User[]): VerificationApplication[]
         registrationNumber: "",
         registrationCouncil: "",
         qualifications: [{ degree: "Paediatric first aid & CPR", institution: "Certified training partner", year: 2024 }],
+        employments: [
+          {
+            organisation: "Little Steps Day Care",
+            role: "Nanny",
+            city: "Mumbai",
+            current: true,
+            startYear: 2024,
+            endYear: null,
+            contactName: "Meera Joshi",
+            contactPhone: "+91 98200 41122",
+          },
+          {
+            organisation: "Sharma family, Powai",
+            role: "Live-out babysitter",
+            city: "Mumbai",
+            current: false,
+            startYear: 2022,
+            endYear: 2024,
+            contactName: "",
+            contactPhone: "",
+          },
+        ],
         policeVerificationRef: "TEST-MPV-20931",
       },
       documents: [

@@ -38,6 +38,7 @@ function initialDetails(provider: ProviderProfile, user: User | null, latest: Ve
     registrationNumber: registration?.reference ?? "",
     registrationCouncil: registration?.issuer ?? "",
     qualifications: [],
+    employments: [],
     policeVerificationRef: "",
   };
 }
@@ -101,6 +102,7 @@ export default async function ProviderVerificationPage() {
     "Government photo ID — we keep only the last 4 characters",
     req.registration && `${REGISTRATION_LABELS[provider.category]} with your council`,
     req.qualifications && "Your qualifications and where you studied",
+    "Where you work now and where you worked before — we may call the organisation",
     req.police && "Police verification certificate",
     `Documents: ${req.documents.map((kind) => DOCUMENT_LABELS[kind].toLowerCase()).join(", ")}`,
   ].filter((item): item is string => Boolean(item));

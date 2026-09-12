@@ -1,6 +1,7 @@
 import { conflict, notFound } from "@/lib/errors";
 import type { SeedData } from "@/lib/seed";
 import type {
+  AccountDevice,
   AuditLogEntry,
   Booking,
   CategoryId,
@@ -37,6 +38,8 @@ export class MemoryRepository implements CareRepository {
   private auditSeq = 0;
   /** app user id → Supabase Auth user id. */
   private readonly authLinks = new Map<string, string>();
+  /** Device token hash → the account it was issued for. */
+  private readonly devices = new Map<string, AccountDevice>();
 
   constructor(seed: SeedData) {
     this.state = { ...clone(seed), auditLogs: [] };
@@ -72,7 +75,22 @@ export class MemoryRepository implements CareRepository {
     if (referenced) return false;
     this.state.users = this.state.users.filter((u) => u.id !== id);
     this.authLinks.delete(id);
+    for (const [hash, device] of this.devices) if (device.userId === id) this.devices.delete(hash);
     return true;
+  }
+
+  async registerDevice(device: AccountDevice) {
+    this.devices.set(device.tokenHash, clone(device));
+  }
+
+  async findDeviceUser(tokenHash: string) {
+    return this.devices.get(tokenHash)?.userId ?? null;
+  }
+
+  async listDevices(userId: string) {
+    return clone([...this.devices.values()].filter((d) => d.userId === userId)).sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
   }
 
   async listCategories() {

@@ -1,4 +1,5 @@
 import type {
+  AccountDevice,
   ApplicationStatus,
   AuditLogEntry,
   AvailabilitySlot,
@@ -78,6 +79,13 @@ export interface CareRepository {
   linkAuthUser(userId: string, authUserId: string): Promise<void>;
   /** Returns false (and keeps the row) if something still references the user. */
   deleteUser(id: string): Promise<boolean>;
+
+  /** Records that an account may be logged into from this device. Re-registering the same hash is a no-op. */
+  registerDevice(device: AccountDevice): Promise<void>;
+  /** The account a device secret was issued for, or null if the hash is unknown. */
+  findDeviceUser(tokenHash: string): Promise<string | null>;
+  /** Devices registered for an account, newest first. */
+  listDevices(userId: string): Promise<AccountDevice[]>;
 
   listCategories(): Promise<Category[]>;
   updateCategory(id: CategoryId, patch: CategoryPatch): Promise<Category>;

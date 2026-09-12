@@ -57,8 +57,14 @@ export const REGISTRATION_LABELS: Record<CategoryId, string> = {
 export const PHOTO_MAX_CHARS = 200_000;
 const PHOTO_PATTERN = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
 
+const INDIAN_MOBILE = /^(\+91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/;
+
 const requiredText = (min: number, max: number, message: string) => z.string().trim().min(min, message).max(max);
 const optionalText = (max: number) => z.string().trim().max(max).default("");
+const optionalPhone = () =>
+  optionalText(20).refine((value) => value === "" || INDIAN_MOBILE.test(value), "Enter a valid 10-digit Indian mobile number");
+const workYear = (message: string) =>
+  z.number({ error: message }).int().min(1960, "Enter a valid year").max(new Date().getFullYear(), "Year can't be in the future");
 
 export const qualificationSchema = z.object({
   degree: requiredText(2, 40, "Choose a qualification"),
@@ -69,6 +75,27 @@ export const qualificationSchema = z.object({
     .min(1960, "Enter a valid year")
     .max(new Date().getFullYear(), "Year can't be in the future"),
 });
+
+/** One workplace. The admin cross-checks it with the organisation before approving. */
+export const employmentSchema = z
+  .object({
+    organisation: requiredText(3, 120, "Enter the hospital, agency, clinic or family you worked for"),
+    role: requiredText(2, 60, "Enter the role you held there"),
+    city: requiredText(2, 60, "Enter the city"),
+    current: z.boolean().default(false),
+    startYear: workYear("Enter the year you joined"),
+    endYear: workYear("Enter the year you left").nullable().default(null),
+    contactName: optionalText(80),
+    contactPhone: optionalPhone(),
+  })
+  .superRefine((job, ctx) => {
+    if (job.current) return;
+    if (job.endYear === null) {
+      ctx.addIssue({ code: "custom", path: ["endYear"], message: "Enter the year you left, or tick “I work here now”" });
+    } else if (job.endYear < job.startYear) {
+      ctx.addIssue({ code: "custom", path: ["endYear"], message: "The year you left can't be before the year you joined" });
+    }
+  });
 
 export const documentSchema = z.object({
   kind: z.enum(DOCUMENT_KINDS),
@@ -82,7 +109,7 @@ export function verificationSchemaFor(category: CategoryId) {
   const req = VERIFICATION_REQUIREMENTS[category];
   return z.object({
     fullName: requiredText(3, 80, "Enter your full name as on your ID"),
-    phone: z.string().trim().regex(/^(\+91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/, "Enter a valid 10-digit Indian mobile number"),
+    phone: z.string().trim().regex(INDIAN_MOBILE, "Enter a valid 10-digit Indian mobile number"),
     email: z.email("Enter a valid email address").max(120),
     addressText: requiredText(10, 200, "Enter your full address"),
     city: requiredText(2, 60, "Enter your city"),
@@ -97,6 +124,7 @@ export function verificationSchemaFor(category: CategoryId) {
     registrationNumber: req.registration ? requiredText(4, 40, "Enter your registration number") : optionalText(40),
     registrationCouncil: req.registration ? requiredText(3, 80, "Enter your registering council") : optionalText(80),
     qualifications: z.array(qualificationSchema).min(req.qualifications ? 1 : 0, "Add at least one qualification").max(6),
+    employments: z.array(employmentSchema).max(8).default([]),
     policeVerificationRef: req.police
       ? requiredText(4, 40, "Enter your police verification certificate number")
       : optionalText(40),
@@ -107,7 +135,17 @@ export function verificationSchemaFor(category: CategoryId) {
         message: `Upload: ${req.documents.map((kind) => DOCUMENT_LABELS[kind].toLowerCase()).join(", ")}`,
       }),
     confirmAccurate: z.literal(true, { error: "Please confirm these details are accurate" }),
-  });
+  })
+    // Anyone claiming experience must name at least one workplace we can ring to check it.
+    .superRefine((input, ctx) => {
+      if (input.yearsExperience > 0 && input.employments.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["employments"],
+          message: "Add at least one workplace — where you work now, or where you worked last",
+        });
+      }
+    });
 }
 
 export type VerificationSubmission = z.output<ReturnType<typeof verificationSchemaFor>>;

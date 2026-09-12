@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { Building2, FileText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusBadge } from "@/components/booking-status";
@@ -130,7 +130,7 @@ export default async function AdminDashboardPage() {
         <Card className="scroll-mt-24 p-6" id="verification">
           <SectionHeading
             title={`Verification requests (${submitted.length})`}
-            description="Check each caretaker's identity, qualifications and registration against their documents before approving. Approval gives them the blue verified tick and makes them bookable."
+            description="Check each caretaker's identity, qualifications, work history and registration against their documents before approving. Approval gives them the blue verified tick and makes them bookable."
           />
           {submitted.length === 0 ? (
             <p className="text-sm text-ink-muted">No applications waiting for review.</p>
@@ -172,6 +172,34 @@ export default async function AdminDashboardPage() {
                         </div>
                       ))}
                     </dl>
+
+                    <div className="mt-4">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-ink-muted">
+                        Work history <span className="font-medium normal-case tracking-normal">— call the organisation to cross-verify</span>
+                      </h3>
+                      {!application.details.employments?.length ? (
+                        <p className="text-sm text-ink-muted">None listed</p>
+                      ) : (
+                        <ul className="mt-1 space-y-1 text-sm">
+                          {application.details.employments.map((job) => (
+                            <li key={`${job.organisation}-${job.startYear}`} className="flex flex-wrap items-baseline gap-x-2">
+                              <Building2 aria-hidden className="size-4 shrink-0 self-center text-ink-muted" />
+                              <span className="font-semibold">{job.organisation}</span>
+                              <span className="text-ink-muted">
+                                {job.role}, {job.city} · {job.startYear}–{job.current ? "present" : job.endYear}
+                              </span>
+                              {job.current && <Badge tone="success">Current</Badge>}
+                              {job.contactName && (
+                                <span className="text-ink-muted">
+                                  Contact: {job.contactName}
+                                  {job.contactPhone && ` · ${job.contactPhone}`}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
 
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                       <div>

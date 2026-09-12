@@ -48,6 +48,18 @@ test.beforeAll(async ({ playwright }, testInfo) => {
         registrationNumber: "DNC-12345",
         registrationCouncil: "Delhi Nursing Council",
         qualifications: [{ degree: "B.Sc Nursing", institution: "Test College of Nursing", year: 2018 }],
+        employments: [
+          {
+            organisation: "City Hospital, Connaught Place",
+            role: "Staff nurse, ICU",
+            city: "New Delhi",
+            current: true,
+            startYear: 2020,
+            endYear: null,
+            contactName: "Matron Sunita Rao",
+            contactPhone: "+91 98100 55667",
+          },
+        ],
         policeVerificationRef: "",
         documents: ["photo_id", "degree", "registration"].map((kind) => ({ kind, fileName: `${kind}.pdf`, sizeBytes: 1000, contentType: "application/pdf" })),
         confirmAccurate: true,

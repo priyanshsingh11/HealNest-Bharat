@@ -35,6 +35,7 @@ export async function submitVerification(
     registrationNumber: input.registrationNumber,
     registrationCouncil: input.registrationCouncil,
     qualifications: input.qualifications,
+    employments: (input.employments ?? []).map((job) => ({ ...job, endYear: job.current ? null : job.endYear })),
     policeVerificationRef: input.policeVerificationRef,
   };
 

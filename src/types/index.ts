@@ -40,6 +40,19 @@ export type User = {
   createdAt: string;
 };
 
+/**
+ * A browser an account may be used from. Sign-up issues a secret to that browser and keeps only its hash
+ * here, so an account can only be logged into from a device it was registered on.
+ */
+export type AccountDevice = {
+  /** SHA-256 (hex) of the secret the browser holds. The secret itself is never stored. */
+  tokenHash: string;
+  userId: string;
+  /** Where it was registered, e.g. "Mac · Chrome". Shown back to the account owner, never used for auth. */
+  label: string;
+  createdAt: string;
+};
+
 export type VerificationStatus = "verified" | "pending" | "unverified" | "rejected";
 export type Gender = "female" | "male" | "other";
 
@@ -54,6 +67,20 @@ export type Credential = {
 export type GeoPoint = { latitude: number; longitude: number };
 
 export type Qualification = { degree: string; institution: string; year: number };
+
+/** One job a caretaker has held. Admins ring the organisation to cross-verify these. */
+export type Employment = {
+  organisation: string;
+  role: string;
+  city: string;
+  /** True for the job held right now; `endYear` is null then. */
+  current: boolean;
+  startYear: number;
+  endYear: number | null;
+  /** Supervisor or HR contact who can confirm the role. Optional. */
+  contactName: string;
+  contactPhone: string;
+};
 
 export type ProviderProfile = {
   id: string;
@@ -245,6 +272,8 @@ export type VerificationDetails = {
   registrationNumber: string;
   registrationCouncil: string;
   qualifications: Qualification[];
+  /** Current and previous workplaces, newest first. */
+  employments: Employment[];
   policeVerificationRef: string;
 };
 

@@ -36,6 +36,14 @@ const COMMON_LANGUAGES = [
   "Bhojpuri",
 ];
 
+const PROFESSION_ROLE_HINT: Record<CategoryId, string> = {
+  nurse: "Staff nurse, ICU",
+  physiotherapist: "Physiotherapist, OPD",
+  phlebotomist: "Lab technician",
+  babysitter: "Live-out nanny",
+  caregiver: "Elder-care attendant",
+};
+
 const PHOTO_SIZE_PX = 320;
 
 /** Centre-crops to a square and downsizes, so the stored photo is a small JPEG data URL. */
@@ -67,6 +75,28 @@ function Section({ title, description, children }: { title: string; description?
 }
 
 type QualificationRow = { degree: string; institution: string; year: string };
+
+type EmploymentRow = {
+  organisation: string;
+  role: string;
+  city: string;
+  current: boolean;
+  startYear: string;
+  endYear: string;
+  contactName: string;
+  contactPhone: string;
+};
+
+const emptyEmployment = (current: boolean): EmploymentRow => ({
+  organisation: "",
+  role: "",
+  city: "",
+  current,
+  startYear: "",
+  endYear: "",
+  contactName: "",
+  contactPhone: "",
+});
 
 type Props = {
   providerId: string;
@@ -100,6 +130,20 @@ export function VerificationForm({ providerId, category, initial }: Props) {
       : req.qualifications
         ? [{ degree: "", institution: "", year: "" }]
         : [],
+  );
+  const [employments, setEmployments] = useState<EmploymentRow[]>(
+    initial.employments?.length
+      ? initial.employments.map((job) => ({
+          organisation: job.organisation,
+          role: job.role,
+          city: job.city,
+          current: job.current,
+          startYear: String(job.startYear),
+          endYear: job.endYear === null ? "" : String(job.endYear),
+          contactName: job.contactName,
+          contactPhone: job.contactPhone,
+        }))
+      : [emptyEmployment(true)],
   );
   const [photoUrl, setPhotoUrl] = useState<string | null>(initial.photoUrl);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -140,18 +184,28 @@ export function VerificationForm({ providerId, category, initial }: Props) {
     event.preventDefault();
     setServerError(null);
     const { yearsExperience, ...rest } = form;
+    // Rows the caretaker never filled in are dropped, so error paths are mapped back to the row on screen.
+    const filledJobs = employments.filter((job) => job.organisation.trim() || job.role.trim() || job.city.trim() || job.startYear);
+    const jobRowIndex = filledJobs.map((job) => employments.indexOf(job));
+    const errorPath = (path: string) =>
+      path.replace(/^employments\.(\d+)/, (match, index: string) => `employments.${jobRowIndex[Number(index)] ?? index}`);
     const parsed = verificationSchemaFor(category).safeParse({
       ...rest,
       yearsExperience: yearsExperience === "" ? undefined : Number(yearsExperience),
       languages,
       photoUrl: photoUrl ?? undefined,
       qualifications: qualifications.map((q) => ({ degree: q.degree, institution: q.institution, year: q.year === "" ? undefined : Number(q.year) })),
+      employments: filledJobs.map((job) => ({
+        ...job,
+        startYear: job.startYear === "" ? undefined : Number(job.startYear),
+        endYear: job.current || job.endYear === "" ? null : Number(job.endYear),
+      })),
       documents: Object.values(documents),
       confirmAccurate: confirm,
     });
     if (!parsed.success) {
       const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) next[issue.path.join(".")] ??= issue.message;
+      for (const issue of parsed.error.issues) next[errorPath(issue.path.join("."))] ??= issue.message;
       setErrors(next);
       return;
     }
@@ -163,7 +217,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
       startTransition(() => router.refresh());
     } catch (e) {
       if (e instanceof ApiRequestError && e.issues.length) {
-        setErrors(Object.fromEntries(e.issues.map((issue) => [issue.path, issue.message])));
+        setErrors(Object.fromEntries(e.issues.map((issue) => [errorPath(issue.path), issue.message])));
       }
       setServerError(e instanceof Error ? e.message : "Could not submit your details");
     } finally {
@@ -446,6 +500,148 @@ export function VerificationForm({ providerId, category, initial }: Props) {
           )}
           <FieldError id="qualifications-error" message={errors.qualifications} />
         </fieldset>
+      </Section>
+
+      <Section
+        title="Work history"
+        description="Where you work now and where you have worked before. Our team may call the organisation to confirm your role, so give a contact person where you can."
+      >
+        <ul className="space-y-3">
+          {employments.map((row, index) => {
+            const update = (patch: Partial<EmploymentRow>) =>
+              setEmployments((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+            const key = `employments.${index}`;
+            const rowError = errors[key];
+            return (
+              <li key={index} className="rounded-xl bg-canvas p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-ink">{row.current ? "Current workplace" : `Workplace ${index + 1}`}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-rose-700"
+                    onClick={() => setEmployments((rows) => rows.filter((_, i) => i !== index))}
+                    aria-label={`Remove workplace ${index + 1}`}
+                  >
+                    <Trash2 aria-hidden className="size-4" />
+                    <span className="sm:sr-only">Remove</span>
+                  </Button>
+                </div>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`${key}.organisation`}>Hospital, clinic, agency or family</Label>
+                    <Input
+                      id={`${key}.organisation`}
+                      value={row.organisation}
+                      onChange={(e) => update({ organisation: e.target.value })}
+                      placeholder="e.g. Apollo Hospital, Indiranagar"
+                      aria-invalid={Boolean(errors[`${key}.organisation`]) || undefined}
+                    />
+                    <FieldError id={`${key}.organisation-error`} message={errors[`${key}.organisation`]} />
+                  </div>
+                  <div>
+                    <Label htmlFor={`${key}.role`}>Your role there</Label>
+                    <Input
+                      id={`${key}.role`}
+                      value={row.role}
+                      onChange={(e) => update({ role: e.target.value })}
+                      placeholder={`e.g. ${PROFESSION_ROLE_HINT[category]}`}
+                      aria-invalid={Boolean(errors[`${key}.role`]) || undefined}
+                    />
+                    <FieldError id={`${key}.role-error`} message={errors[`${key}.role`]} />
+                  </div>
+                  <div>
+                    <Label htmlFor={`${key}.city`}>City</Label>
+                    <Input
+                      id={`${key}.city`}
+                      value={row.city}
+                      onChange={(e) => update({ city: e.target.value })}
+                      aria-invalid={Boolean(errors[`${key}.city`]) || undefined}
+                    />
+                    <FieldError id={`${key}.city-error`} message={errors[`${key}.city`]} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor={`${key}.startYear`}>From (year)</Label>
+                      <Input
+                        id={`${key}.startYear`}
+                        type="number"
+                        min={1960}
+                        max={new Date().getFullYear()}
+                        value={row.startYear}
+                        onChange={(e) => update({ startYear: e.target.value })}
+                        aria-invalid={Boolean(errors[`${key}.startYear`]) || undefined}
+                      />
+                      <FieldError id={`${key}.startYear-error`} message={errors[`${key}.startYear`]} />
+                    </div>
+                    <div>
+                      <Label htmlFor={`${key}.endYear`}>To (year)</Label>
+                      <Input
+                        id={`${key}.endYear`}
+                        type="number"
+                        min={1960}
+                        max={new Date().getFullYear()}
+                        value={row.current ? "" : row.endYear}
+                        disabled={row.current}
+                        className="disabled:bg-canvas disabled:text-ink-muted"
+                        placeholder={row.current ? "Present" : undefined}
+                        onChange={(e) => update({ endYear: e.target.value })}
+                        aria-invalid={Boolean(errors[`${key}.endYear`]) || undefined}
+                      />
+                      <FieldError id={`${key}.endYear-error`} message={errors[`${key}.endYear`]} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-ink sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-brand-700"
+                      checked={row.current}
+                      onChange={(e) => update({ current: e.target.checked, endYear: e.target.checked ? "" : row.endYear })}
+                    />
+                    I work here now
+                  </label>
+                  <div>
+                    <Label htmlFor={`${key}.contactName`}>
+                      Contact person <span className="font-normal text-ink-muted">(optional)</span>
+                    </Label>
+                    <Input
+                      id={`${key}.contactName`}
+                      value={row.contactName}
+                      onChange={(e) => update({ contactName: e.target.value })}
+                      placeholder="Matron, HR or the family member"
+                      aria-invalid={Boolean(errors[`${key}.contactName`]) || undefined}
+                    />
+                    <FieldError id={`${key}.contactName-error`} message={errors[`${key}.contactName`]} />
+                  </div>
+                  <div>
+                    <Label htmlFor={`${key}.contactPhone`}>
+                      Their mobile number <span className="font-normal text-ink-muted">(optional)</span>
+                    </Label>
+                    <Input
+                      id={`${key}.contactPhone`}
+                      type="tel"
+                      value={row.contactPhone}
+                      onChange={(e) => update({ contactPhone: e.target.value })}
+                      aria-invalid={Boolean(errors[`${key}.contactPhone`]) || undefined}
+                    />
+                    <FieldError id={`${key}.contactPhone-error`} message={errors[`${key}.contactPhone`]} />
+                  </div>
+                </div>
+                <FieldError id={`${key}-error`} message={rowError} />
+              </li>
+            );
+          })}
+        </ul>
+        {employments.length < 8 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setEmployments((rows) => [...rows, emptyEmployment(rows.length === 0)])}
+          >
+            <Plus aria-hidden className="size-4" /> Add {employments.length === 0 ? "workplace" : "previous workplace"}
+          </Button>
+        )}
+        <FieldError id="employments-error" message={errors.employments} />
       </Section>
 
       <Section title="Documents" description="PDF or photo, up to 10 MB each. In this demo only the file name is recorded — files aren't uploaded.">

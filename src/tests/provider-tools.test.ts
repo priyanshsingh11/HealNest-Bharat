@@ -64,6 +64,28 @@ describe("caretaker verification", () => {
     govtIdLast4: "1234",
     photoUrl: PHOTO,
     qualifications: [],
+    employments: [
+      {
+        organisation: "Seva Elder Care, Delhi",
+        role: "Home attendant",
+        city: "New Delhi",
+        current: true,
+        startYear: 2023,
+        endYear: null,
+        contactName: "Ravi Malhotra",
+        contactPhone: "+91 98110 22334",
+      },
+      {
+        organisation: "Kapoor family, Rohini",
+        role: "Live-in caregiver",
+        city: "New Delhi",
+        current: false,
+        startYear: 2021,
+        endYear: 2023,
+        contactName: "",
+        contactPhone: "",
+      },
+    ],
     policeVerificationRef: "DL-PV-99812",
     documents: [
       { kind: "photo_id", fileName: "aadhaar.pdf", sizeBytes: 1000, contentType: "application/pdf" },
@@ -81,6 +103,21 @@ describe("caretaker verification", () => {
     expect(verificationSchemaFor("caregiver").safeParse({ ...caregiverForm, policeVerificationRef: "" }).success).toBe(false);
   });
 
+  it("requires a workplace to back up claimed experience, and an end year for past jobs", () => {
+    const schema = verificationSchemaFor("caregiver");
+    const withoutHistory = schema.safeParse({ ...caregiverForm, employments: [] });
+    expect(withoutHistory.success).toBe(false);
+    expect(withoutHistory.error!.issues.map((i) => i.path.join("."))).toContain("employments");
+    // A fresher with no experience doesn't have to list one.
+    expect(schema.safeParse({ ...caregiverForm, yearsExperience: 0, employments: [] }).success).toBe(true);
+
+    const [current, past] = caregiverForm.employments;
+    const openEnded = schema.safeParse({ ...caregiverForm, employments: [{ ...past, endYear: null }] });
+    expect(openEnded.success).toBe(false);
+    expect(openEnded.error!.issues.map((i) => i.path.join("."))).toContain("employments.0.endYear");
+    expect(schema.safeParse({ ...caregiverForm, employments: [{ ...current, contactPhone: "12345" }] }).success).toBe(false);
+  });
+
   it("moves a caretaker from submitted to verified with checked credentials and photo", async () => {
     const input = verificationSchemaFor("caregiver").parse(caregiverForm);
     const application = await submitVerification(repo, buildSession("provider", "prov_08"), "prov_08", input, NOW);
@@ -93,6 +130,7 @@ describe("caretaker verification", () => {
     expect(provider.name).toBe("Anjali Thakur");
     expect(provider.photoUrl).toBe(PHOTO);
     expect(provider.credentials.map((c) => c.label)).toEqual(["Police verification", "Identity check"]);
+    expect(application.details.employments.map((e) => e.organisation)).toEqual(["Seva Elder Care, Delhi", "Kapoor family, Rohini"]);
     expect(provider.credentials.every((c) => c.verified)).toBe(true);
     await expect(reviewVerification(repo, admin, application.id, "reject", "Too late", NOW)).rejects.toMatchObject({ status: 409 });
   });
