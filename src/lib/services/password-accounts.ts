@@ -12,7 +12,7 @@ import type { User } from "@/types";
 
 export const WRONG_PASSWORD_MESSAGE = "Email or password is incorrect.";
 export const NO_ACCOUNT_MESSAGE = "No HealNest account uses this email yet. Sign up to create one.";
-export const STAFF_ACCOUNT_MESSAGE = "Staff accounts sign in from “HealNest staff sign-in” at the bottom of this page.";
+export const STAFF_ACCOUNT_MESSAGE = "Staff accounts sign in from “HealNest Admin sign-in” at the bottom of this page.";
 
 const isConflict = (error: unknown) => error instanceof AppError && error.status === 409;
 

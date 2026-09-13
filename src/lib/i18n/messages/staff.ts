@@ -6,7 +6,7 @@ export const staffMessages = defineMessages({
     meta: { title: "Staff sign-in" },
     heading: "Staff sign-in",
     pageIntro: "For HealNest staff only. The passcode emails a one-time code to your approved staff address.",
-    toggle: "HealNest staff sign-in",
+    toggle: "HealNest Admin sign-in",
     sectionIntro: "Two steps: the staff passcode, then a one-time code emailed to your approved staff address.",
     close: "Close",
     form: {
@@ -34,7 +34,7 @@ export const staffMessages = defineMessages({
     meta: { title: "स्टाफ साइन इन" },
     heading: "स्टाफ साइन इन",
     pageIntro: "सिर्फ़ HealNest स्टाफ के लिए। पासकोड डालने पर आपके मंज़ूर स्टाफ ईमेल पर एक वन-टाइम कोड भेजा जाता है।",
-    toggle: "HealNest स्टाफ साइन इन",
+    toggle: "HealNest एडमिन साइन इन",
     sectionIntro: "दो चरण: पहले स्टाफ पासकोड, फिर आपके मंज़ूर स्टाफ ईमेल पर भेजा गया वन-टाइम कोड।",
     close: "बंद करें",
     form: {

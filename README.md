@@ -42,7 +42,7 @@ The session is one signed, httpOnly cookie (`hn_session`), signed with `SESSION_
 derived from `SUPABASE_SERVICE_ROLE_KEY`), so it can't be edited in the browser.
 
 Staff sign-in is separate: the admin dashboard has no account picker and nothing links to it. Staff go to **`/staff`**
-(or *HealNest staff sign-in* under the login form), enter `ADMIN_PASSCODE`, then the code emailed to an address in
+(or *HealNest Admin sign-in* under the login form), enter `ADMIN_PASSCODE`, then the code emailed to an address in
 `ADMIN_EMAILS`. A password log-in never opens the admin dashboard.
 
 ## Scripts

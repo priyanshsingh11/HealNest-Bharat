@@ -131,8 +131,8 @@ const HI_EXACT: Record<string, string> = {
   "Email or password is incorrect.": "ईमेल या पासवर्ड सही नहीं है।",
   "No HealNest account uses this email yet. Sign up to create one.":
     "इस ईमेल से अभी कोई HealNest अकाउंट नहीं है। नया अकाउंट बनाने के लिए साइन अप करें।",
-  "Staff accounts sign in from “HealNest staff sign-in” at the bottom of this page.":
-    "स्टाफ अकाउंट इस पेज के नीचे “HealNest स्टाफ साइन इन” से लॉग इन करते हैं।",
+  "Staff accounts sign in from “HealNest Admin sign-in” at the bottom of this page.":
+    "स्टाफ अकाउंट इस पेज के नीचे “HealNest एडमिन साइन इन” से लॉग इन करते हैं।",
   "This caretaker account has no profile. Please contact HealNest support.":
     "इस देखभालकर्ता अकाउंट की कोई प्रोफ़ाइल नहीं है। कृपया HealNest सहायता से संपर्क करें।",
   "That code is wrong or has expired. Check the latest email, or request a new code.":
