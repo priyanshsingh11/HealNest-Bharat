@@ -18,9 +18,15 @@ Errors share one shape:
 | 422 | `UNPROCESSABLE` | Business rule failed (unverified provider, outside service area) |
 | 429 | `RATE_LIMITED` | Too many requests (`Retry-After` header) |
 
-## Session (mock auth)
+## Accounts and session
 
-`POST /api/session` — `{ "role": "user" | "provider" | "admin", "providerId"?: "prov_01" }` → sets `hn_role` / `hn_provider` httpOnly cookies. Disabled when `DEMO_TOOLS=false`.
+`POST /api/accounts` — sign-up: the customer or caretaker details plus `"password"` (8–72 characters) → `201 { session }`, and logs in.
+
+`POST /api/session` — log in: `{ "email", "password" }` → `{ session }`. Staff: `{ "role": "admin", "email", "code" }` after `POST /api/staff/code`.
+Either sets the signed httpOnly `hn_session` cookie. `DELETE /api/session` logs out.
+
+`POST /api/password-reset` — `{ "email" }` → `{ sent: true }` (same reply whether or not the email has an account).
+`POST /api/password-reset/confirm` — `{ "email", "code", "password" }` → `{ session }`, or `{ session: null }` when the email has no account yet.
 
 ## Discovery
 

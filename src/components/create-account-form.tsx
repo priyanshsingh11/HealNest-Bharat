@@ -10,8 +10,10 @@ import { ApiRequestError, apiRequest } from "@/lib/client-api";
 import { useLocale, useMessages } from "@/lib/i18n/client";
 import { authMessages } from "@/lib/i18n/messages/auth";
 import { domainMessages } from "@/lib/i18n/messages/domain";
-import { rememberDeviceAccount, type DeviceAccount } from "@/lib/device-accounts";
+import { landingFor } from "@/lib/landing";
+import type { Session } from "@/lib/session";
 import { CaretakerLocationPicker } from "@/components/caretaker-location-picker";
+import { PasswordInput } from "@/components/ui/password-input";
 import type { CategoryId } from "@/types";
 
 type Props = {
@@ -20,7 +22,6 @@ type Props = {
   profession: CategoryId;
   /** Where to send a customer after sign-up (validated server-side). */
   next: string | null;
-  enabled: boolean;
 };
 
 function Field({
@@ -48,9 +49,9 @@ function Field({
   );
 }
 
-/** Sign-up for a customer or caretaker: creates the account and logs straight into it. */
-export function CreateAccountForm({ type, profession, next, enabled }: Props) {
-  const t = useMessages(authMessages).signUp;
+/** Sign-up for a customer or caretaker: creates the account with its email + password login, and logs straight in. */
+export function CreateAccountForm({ type, profession, next }: Props) {
+  const { signUp: t, login } = useMessages(authMessages);
   const locale = useLocale();
   const id = useId();
   const router = useRouter();
@@ -58,7 +59,7 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<Record<string, string>>({});
-  const busy = !enabled || submitting || pending;
+  const busy = submitting || pending;
   const caretaker = type === "caretaker";
   const professionLabel = domainMessages[locale].professions[profession].toLowerCase();
 
@@ -74,7 +75,7 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
-    const contact = { name: text("name"), email: text("email"), phone: text("phone") };
+    const contact = { name: text("name"), email: text("email"), phone: text("phone"), password: text("password") };
     const exactLocRaw = text("exactLocation");
     let exactLocation: { latitude: number; longitude: number; locality: string; city: string; formattedAddress?: string } | undefined;
     if (exactLocRaw) {
@@ -105,12 +106,9 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
     setIssues({});
     setSubmitting(true);
     try {
-      // The response carries the device secret for the new account — returned exactly once, at sign-up.
-      // Saving it here is what lets this browser (and only this browser) log back in later.
-      const { account } = await apiRequest<{ account: DeviceAccount }>("/api/accounts", "POST", body);
-      rememberDeviceAccount(account);
+      const { session } = await apiRequest<{ session: Session }>("/api/accounts", "POST", body);
       startTransition(() => {
-        router.push(caretaker ? "/dashboard/provider" : (next ?? "/"));
+        router.push(landingFor(session, next));
         router.refresh();
       });
     } catch (e) {
@@ -142,6 +140,17 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
         </Field>
         <Field htmlFor={`${id}-phone`} label={t.mobile} error={issues.phone}>
           <Input {...control("phone")} type="tel" autoComplete="tel" inputMode="tel" required placeholder="+91 98765 43210" />
+        </Field>
+        <Field htmlFor={`${id}-password`} label={t.password} error={issues.password} hint={t.passwordHint} className="sm:col-span-2">
+          <PasswordInput
+            {...control("password")}
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={72}
+            required
+            showLabel={login.showPassword}
+            hideLabel={login.hidePassword}
+          />
         </Field>
       </div>
 

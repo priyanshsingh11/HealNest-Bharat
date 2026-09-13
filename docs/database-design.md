@@ -246,13 +246,13 @@ only. Once uploads go to Storage, store the object path there.
    ```sql
    update public.app_users set role = 'admin' where email = 'you@example.com';
    ```
-7. **Add caretakers.** Create them from *Log in → caretaker* (demo sign-up), then submit and approve their
+7. **Add caretakers.** Create them from *Log in → Sign up → Caretaker*, then submit and approve their
    verification from the provider and admin dashboards. Only verified caretakers can be booked.
 
 ## Still to do for production login
 
-1. Add real authentication. Log in and sign-up currently use the demo account pickers and demo sign-up only.
-   Sign the session cookies too (or switch to `@supabase/ssr` sessions): today `hn_role` / `hn_user` are plain cookies.
-2. Set `DEMO_TOOLS=false`. This hides the demo account pickers and blocks the demo `POST /api/session` and `POST /api/accounts`.
+1. Customers and caretakers log in with email + password through Supabase Auth, and the session cookie is signed.
+   Still open: confirming the email address at sign-up.
+2. Set `DEMO_TOOLS=false` to hide the "simulate provider update" buttons.
 3. For production, move booking creation (address + booking + quote + events) into one Postgres function called with
    `rpc()`, so it runs in a single transaction.

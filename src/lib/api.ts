@@ -39,6 +39,8 @@ type Limit = { name: string; limit: number; windowMs: number };
 export const LIMITS = {
   read: { name: "read", limit: 120, windowMs: 60_000 },
   write: { name: "write", limit: 30, windowMs: 60_000 },
+  /** Log in, sign-up and password reset: each attempt guesses a password or can send an email. */
+  auth: { name: "auth", limit: 30, windowMs: 10 * 60_000 },
   /** Staff sign-in: strict, because each attempt can send an email and guesses a shared secret. */
   staff: { name: "staff", limit: 6, windowMs: 10 * 60_000 },
 } satisfies Record<string, Limit>;

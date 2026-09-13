@@ -114,22 +114,36 @@ const HI_EXACT: Record<string, string> = {
 
   // Staff sign-in (src/lib/staff-otp.ts, src/app/api/staff, src/app/api/session)
   "Staff sign-in is not set up on this deployment.": "इस साइट पर स्टाफ लॉग इन चालू नहीं है।",
-  "Too many codes requested. Wait a minute and try again.": "बहुत ज़्यादा कोड माँगे गए। एक मिनट रुककर फिर से कोशिश करें।",
+  "Email limit reached for now. Use the latest code already sent to your inbox, or try again later.":
+    "अभी ईमेल की सीमा पूरी हो गई है। अपने इनबॉक्स में आया सबसे नया कोड इस्तेमाल करें, या बाद में फिर से कोशिश करें।",
   "Could not send the sign-in code. Check that this address is a Supabase Auth user.":
     "लॉग इन कोड नहीं भेजा जा सका। जाँचें कि यह पता Supabase Auth में यूज़र के रूप में जुड़ा है।",
   "That passcode is not correct.": "यह पासकोड सही नहीं है।",
   "That address is not on the staff list.": "यह पता स्टाफ की सूची में नहीं है।",
   "That sign-in has expired. Start again with your passcode.": "लॉग इन का समय खत्म हो गया। पासकोड से फिर से शुरू करें।",
   "That code is not correct, or it has expired.": "यह कोड सही नहीं है, या इसका समय खत्म हो गया है।",
-  "Sign-in is turned off on this deployment.": "इस साइट पर लॉग इन बंद है।",
-  "Choose a caretaker profile.": "देखभालकर्ता प्रोफ़ाइल चुनें।",
-  "Choose a customer account.": "ग्राहक अकाउंट चुनें।",
-  "This account isn't registered on this device. Log in from the device you created it on, or create a new account.":
-    "यह अकाउंट इस डिवाइस पर रजिस्टर नहीं है। जिस डिवाइस पर अकाउंट बनाया था, वहाँ से लॉग इन करें, या नया अकाउंट बनाएँ।",
+
+  // Log in, sign-up and password reset (src/lib/services/password-accounts.ts, src/lib/password-auth.ts)
+  "Use at least 8 characters for your password": "पासवर्ड में कम से कम 8 अक्षर रखें",
+  "Use 72 characters or fewer for your password": "पासवर्ड में 72 या उससे कम अक्षर रखें",
+  "Enter your password": "अपना पासवर्ड डालें",
+  "Enter the code from the email": "ईमेल में आया कोड डालें",
+  "Email or password is incorrect.": "ईमेल या पासवर्ड सही नहीं है।",
+  "No HealNest account uses this email yet. Sign up to create one.":
+    "इस ईमेल से अभी कोई HealNest अकाउंट नहीं है। नया अकाउंट बनाने के लिए साइन अप करें।",
+  "Staff accounts sign in from “HealNest staff sign-in” at the bottom of this page.":
+    "स्टाफ अकाउंट इस पेज के नीचे “HealNest स्टाफ साइन इन” से लॉग इन करते हैं।",
+  "This caretaker account has no profile. Please contact HealNest support.":
+    "इस देखभालकर्ता अकाउंट की कोई प्रोफ़ाइल नहीं है। कृपया HealNest सहायता से संपर्क करें।",
+  "That code is wrong or has expired. Check the latest email, or request a new code.":
+    "यह कोड गलत है या इसका समय खत्म हो गया है। सबसे नया ईमेल देखें, या नया कोड मँगाएँ।",
+  "Too many attempts. Please wait a few minutes and try again.": "बहुत ज़्यादा कोशिशें। कृपया कुछ मिनट रुककर फिर से कोशिश करें।",
+  "Choose a stronger password: at least 8 characters, not a common one.":
+    "ज़्यादा मज़बूत पासवर्ड चुनें: कम से कम 8 अक्षर, और कोई आम पासवर्ड नहीं।",
 
   // Accounts (src/lib/services/accounts.ts, src/app/api/accounts, repositories)
-  "Creating accounts is disabled.": "अभी नए अकाउंट नहीं बनाए जा सकते।",
-  "An account with this email already exists. Log in to it instead.": "इस ईमेल से पहले से एक अकाउंट है। उसी में लॉग इन करें।",
+  "An account with this email already exists. Log in, or use “Forgot password?” if you don't know the password.":
+    "इस ईमेल से पहले से एक अकाउंट है। लॉग इन करें, या पासवर्ड याद न हो तो “पासवर्ड भूल गए?” इस्तेमाल करें।",
   "Choose where you are based from the list.": "सूची में से चुनें कि आप कहाँ रहते हैं।",
   "This profession is not accepting new caretakers right now.": "इस पेशे में अभी नए देखभालकर्ता नहीं जोड़े जा रहे हैं।",
   "Could not create the account right now. Please try again.": "अभी अकाउंट नहीं बन सका। कृपया फिर से कोशिश करें।",

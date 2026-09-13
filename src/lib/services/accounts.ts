@@ -1,5 +1,6 @@
 import { isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
 import { AppError, conflict, unprocessable } from "@/lib/errors";
+import { EXISTING_EMAIL_MESSAGE } from "@/lib/password-auth";
 import { findLocality } from "@/lib/localities";
 import { CANCELLATION_BY_CATEGORY, starterServicesFor } from "@/lib/platform-defaults";
 import type { CareRepository } from "@/lib/repository/types";
@@ -7,8 +8,8 @@ import { buildSession, type Session } from "@/lib/session";
 import type { AccountCreateInput } from "@/lib/validations";
 import type { ProviderProfile, User } from "@/types";
 
-// Sign-up: creates a customer, or a caretaker with an unverified profile and starter services.
-// Used directly by the demo sign-up, and after the email code is verified by the Supabase Auth sign-up.
+// The app's side of sign-up: creates a customer, or a caretaker with an unverified profile and starter services.
+// The email + password login that opens it is created alongside, in src/lib/services/password-accounts.ts.
 
 const DEFAULT_RADIUS_KM = 10;
 const DEFAULT_TRAVEL_FEE_MINOR = 5000;
@@ -19,8 +20,8 @@ const ID_ATTEMPTS = 3;
 const AUTH_PLACEHOLDER_ID = /^user_[0-9a-f]{32}$/;
 
 /**
- * A row the sign-up trigger made for an Auth account the app hasn't finished setting up (e.g. a code that was
- * never entered). It is not a real account. Admins promoted with SQL keep the trigger's id, so they don't count.
+ * A row the sign-up trigger made for an Auth account the app hasn't finished setting up (e.g. a sign-up that
+ * failed half-way). It is not a real account. Admins promoted with SQL keep the trigger's id, so they don't count.
  */
 export const isAuthPlaceholder = (user: User) => AUTH_PLACEHOLDER_ID.test(user.id) && user.role !== "admin";
 
@@ -34,11 +35,11 @@ async function nextProviderId(repo: CareRepository): Promise<string> {
   return `prov_${String(Math.max(0, ...numbers) + 1).padStart(2, "0")}`;
 }
 
-/** Throws the error sign-up would fail with, so the email code is only sent for an account that can be created. */
+/** Throws the error sign-up would fail with, before any login is created for it. */
 export async function checkNewAccount(repo: CareRepository, input: AccountCreateInput): Promise<void> {
   const users = await repo.listUsers({ email: input.email });
   if (users.some((user) => !isAuthPlaceholder(user))) {
-    throw conflict("An account with this email already exists. Log in to it instead.");
+    throw conflict(EXISTING_EMAIL_MESSAGE);
   }
   if (input.type === "customer") return;
 
@@ -53,7 +54,7 @@ export async function checkNewAccount(repo: CareRepository, input: AccountCreate
 }
 
 /** Creates the account and returns the session to log into it. */
-export async function createDemoAccount(repo: CareRepository, input: AccountCreateInput, now = new Date()): Promise<Session> {
+export async function createAppAccount(repo: CareRepository, input: AccountCreateInput, now = new Date()): Promise<Session> {
   await checkNewAccount(repo, input);
   const createdAt = now.toISOString();
 

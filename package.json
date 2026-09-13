@@ -12,8 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed-supabase.ts",
-    "db:prune-accounts": "tsx --env-file-if-exists=.env.local scripts/prune-accounts.ts"
+    "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed-supabase.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

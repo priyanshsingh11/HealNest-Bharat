@@ -1,8 +1,8 @@
 import { DEMO_ADMIN_ID } from "@/lib/seed";
 import type { Role } from "@/types";
 
-// Mock session model. Replace with a real auth provider (e.g. Supabase Auth) later;
-// keep the Session shape so authorization checks stay the same.
+// Who is logged in. Stored in one signed cookie (src/lib/auth.ts, src/lib/session-token.ts), and set only after an
+// email + password log-in, a sign-up, a password reset, or the two-step staff sign-in.
 
 export type Session = {
   role: Role;
@@ -11,10 +11,9 @@ export type Session = {
   providerId: string | null;
 };
 
-export const ROLE_COOKIE = "hn_role";
-export const PROVIDER_COOKIE = "hn_provider";
-/** Which customer account is logged in. Absent = a guest. */
-export const USER_COOKIE = "hn_user";
+export const SESSION_COOKIE = "hn_session";
+/** Unsigned cookies from before sessions were signed. Never read; cleared whenever a session is set or ended. */
+export const LEGACY_SESSION_COOKIES = ["hn_role", "hn_provider", "hn_user"] as const;
 
 /** Session user id for someone who isn't logged in. No account has it, so guests can browse but not book. */
 export const GUEST_USER_ID = "guest";

@@ -5,6 +5,8 @@ const PORT = 3100;
 export const STAFF_PASSCODE = "test-staff-passcode";
 /** The only address the test server will email a sign-in code to. */
 export const STAFF_EMAIL = "staff@healnest.test";
+/** Signs the test server's session cookies, so the suite can open an admin session without an emailed code. */
+export const SESSION_SECRET = "test-session-secret";
 
 export default defineConfig({
   testDir: "./src/tests",
@@ -29,7 +31,7 @@ export default defineConfig({
     // Staff sign-in needs all three settings before it will run at all. The Supabase values are deliberately
     // unreachable: the suite checks the passcode and staff-list gates, and never that a real code is emailed.
     command:
-      `npm run build && DATA_SOURCE=memory ADMIN_PASSCODE=${STAFF_PASSCODE} ADMIN_EMAILS=${STAFF_EMAIL} ` +
+      `npm run build && DATA_SOURCE=memory SESSION_SECRET=${SESSION_SECRET} ADMIN_PASSCODE=${STAFF_PASSCODE} ADMIN_EMAILS=${STAFF_EMAIL} ` +
       `SUPABASE_ANON_KEY=test-anon-key SUPABASE_URL=https://unreachable.supabase.test npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,

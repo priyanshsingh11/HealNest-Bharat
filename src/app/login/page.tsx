@@ -4,7 +4,6 @@ import { LoginForm } from "@/components/login-form";
 import { StaffSignInSection } from "@/components/staff-sign-in-section";
 import { bookableCategories, isComingSoon } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
-import { demoToolsEnabled } from "@/lib/demo";
 import { authMessages } from "@/lib/i18n/messages/auth";
 import { getMessages } from "@/lib/i18n/server";
 import { flattenParams } from "@/lib/location";
@@ -27,11 +26,7 @@ function safeNext(value: string | undefined): string | null {
   return value;
 }
 
-/**
- * Which accounts exist is deliberately not sent to the browser. The page renders only the professions
- * available for sign-up; the accounts you can log into come from this device's own store, so nobody can
- * see — let alone open — an account created on someone else's device.
- */
+/** Log in or sign up (`?mode=signup`, `?as=caretaker`), with the staff entry tucked underneath. */
 export default async function LoginPage({ searchParams }: PageProps) {
   const params = flattenParams(await searchParams);
   const categories = await getRepository().listCategories();
@@ -43,9 +38,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
         <BrandMark className="mx-auto h-20" />
         <LoginForm
           professions={PROFESSION_ORDER.filter((id) => activeCategories.has(id) || isComingSoon(id))}
+          initialMode={params.mode === "signup" ? "signup" : "login"}
           initialType={params.as === "caretaker" ? "caretaker" : "customer"}
           next={safeNext(params.next)}
-          demoEnabled={demoToolsEnabled()}
         />
         <StaffSignInSection configured={staffLoginConfigured()} />
       </div>

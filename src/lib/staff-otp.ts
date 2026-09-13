@@ -25,8 +25,14 @@ export async function sendStaffCode(email: string): Promise<void> {
   const { error } = await authClient().auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   if (!error) return;
   console.error("[staff] could not send sign-in code", error.message);
-  // Supabase rate-limits its own mailer; say so rather than blaming the address.
-  if (error.status === 429) throw new AppError("Too many codes requested. Wait a minute and try again.", 429, "RATE_LIMITED");
+  // Supabase rate-limits its mailer (a handful of emails an hour on its built-in SMTP), so "a minute" can be
+  // far too short; say so rather than blaming the address.
+  if (error.status === 429)
+    throw new AppError(
+      "Email limit reached for now. Use the latest code already sent to your inbox, or try again later.",
+      429,
+      "RATE_LIMITED",
+    );
   throw new AppError("Could not send the sign-in code. Check that this address is a Supabase Auth user.", 502, "OTP_SEND_FAILED");
 }
 

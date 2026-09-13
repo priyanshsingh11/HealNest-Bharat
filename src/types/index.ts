@@ -40,19 +40,6 @@ export type User = {
   createdAt: string;
 };
 
-/**
- * A browser an account may be used from. Sign-up issues a secret to that browser and keeps only its hash
- * here, so an account can only be logged into from a device it was registered on.
- */
-export type AccountDevice = {
-  /** SHA-256 (hex) of the secret the browser holds. The secret itself is never stored. */
-  tokenHash: string;
-  userId: string;
-  /** Where it was registered, e.g. "Mac · Chrome". Shown back to the account owner, never used for auth. */
-  label: string;
-  createdAt: string;
-};
-
 export type VerificationStatus = "verified" | "pending" | "unverified" | "rejected";
 export type Gender = "female" | "male" | "other";
 

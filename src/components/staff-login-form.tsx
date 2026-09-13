@@ -123,8 +123,9 @@ export function StaffLoginForm({ configured }: { configured: boolean }) {
               inputMode="numeric"
               autoComplete="one-time-code"
               required
+              maxLength={8}
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder={t.codePlaceholder}
               className="tracking-[0.3em]"
             />

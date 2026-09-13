@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { conflict, notFound } from "@/lib/errors";
 import {
   CATEGORY_IDS,
-  type AccountDevice,
   type Booking,
   type CategoryId,
   type PlatformConfig,
@@ -119,6 +118,14 @@ export class SupabaseRepository implements CareRepository {
     if (!row) throw notFound("Account");
   }
 
+  async findUserByAuthId(authUserId: string) {
+    const row = check(
+      await this.db.from("app_users").select("*").eq("auth_user_id", authUserId).maybeSingle(),
+      "findUserByAuthId",
+    );
+    return row ? toUser(row as UserRow) : null;
+  }
+
   async deleteUser(id: string) {
     const result = await this.db.from("app_users").delete().eq("id", id);
     // Foreign-key violation: bookings, addresses or a profile still point at this user.
@@ -127,36 +134,6 @@ export class SupabaseRepository implements CareRepository {
     return true;
   }
 
-  async registerDevice(device: AccountDevice) {
-    check(
-      await this.db.from("account_devices").upsert(
-        {
-          token_hash: device.tokenHash,
-          user_id: device.userId,
-          label: device.label,
-          created_at: device.createdAt,
-        },
-        { onConflict: "token_hash" },
-      ),
-      "registerDevice",
-    );
-  }
-
-  async findDeviceUser(tokenHash: string) {
-    const row = check(
-      await this.db.from("account_devices").select("user_id").eq("token_hash", tokenHash).maybeSingle(),
-      "findDeviceUser",
-    ) as { user_id: string } | null;
-    return row?.user_id ?? null;
-  }
-
-  async listDevices(userId: string) {
-    const rows = check(
-      await this.db.from("account_devices").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-      "listDevices",
-    ) as { token_hash: string; user_id: string; label: string; created_at: string }[];
-    return rows.map((r) => ({ tokenHash: r.token_hash, userId: r.user_id, label: r.label, createdAt: r.created_at }));
-  }
 
   async listCategories() {
     const rows = check(await this.db.from("categories").select("*").order("id"), "listCategories");

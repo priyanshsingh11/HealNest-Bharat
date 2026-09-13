@@ -165,19 +165,9 @@ export const serviceUpdateSchema = z.object({
   active: z.boolean().optional(),
 });
 
-export const sessionSchema = z.object({
-  role: z.enum(["user", "provider", "admin"]),
-  providerId: z.string().max(40).optional(),
-  /** Customer account to log into. Required for the user role. */
-  userId: z.string().max(60).optional(),
-  /**
-   * Secret issued to this browser at sign-up. Required for the user and provider roles: it proves the
-   * account was registered on this device. See src/lib/devices.ts.
-   */
-  deviceToken: z.string().max(200).optional(),
-  /** Staff passcode. Required for the admin role, which has no account picker. */
-  passcode: z.string().max(200).optional(),
-  /** Staff address the code was sent to, and the code itself. Both required for the admin role. */
+/** Step two of staff sign-in: the address the code was sent to, and the code. */
+export const staffSessionSchema = z.object({
+  role: z.literal("admin"),
   email: z.string().trim().max(120).optional(),
   code: z.string().trim().max(12).optional(),
 });
@@ -232,3 +222,25 @@ export const accountCreateSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type AccountCreateInput = z.output<typeof accountCreateSchema>;
+
+/** 72 is the most Supabase Auth (bcrypt) will use; anything longer would be silently cut. */
+const newPassword = z
+  .string()
+  .min(8, "Use at least 8 characters for your password")
+  .max(72, "Use 72 characters or fewer for your password");
+
+/** Sign-up: the account details plus the password for its login. */
+export const signUpSchema = z.intersection(accountCreateSchema, z.object({ password: newPassword }));
+
+export const loginSchema = z.object({
+  email: accountFields.email,
+  password: z.string().min(1, "Enter your password").max(200),
+});
+
+export const passwordResetRequestSchema = z.object({ email: accountFields.email });
+
+export const passwordResetSchema = z.object({
+  email: accountFields.email,
+  code: z.string().trim().regex(/^\d{6,10}$/, "Enter the code from the email"),
+  password: newPassword,
+});

@@ -3,9 +3,8 @@ import type { BookingStatus, SlotStatus } from "@/types";
 
 /** Caretaker dashboard: overview, calendar, slots and reviews pages, plus the shared header, tabs and controls. */
 export const providerDashboardMessages = defineMessages<{
-  gate: { title: string; notFound: string; openSaved: string; logIn: string; deviceOnly: string; createOne: string; toGetStarted: string };
+  gate: { title: string; notFound: string; intro: string; logIn: string; signUp: string };
   nav: { aria: string; overview: string; calendar: string; slots: string; verification: string; reviews: string };
-  switcher: { label: string; open: string; failed: string };
   overview: {
     title: string;
     customerPays: (amount: string) => string;
@@ -116,11 +115,9 @@ export const providerDashboardMessages = defineMessages<{
     gate: {
       title: "Provider dashboard",
       notFound: "That caretaker profile wasn't found. ",
-      openSaved: "Open one of the caretaker profiles saved on this device, or",
-      logIn: "log in as a caretaker",
-      deviceOnly: "Caretaker accounts can only be opened from the device they were created on.",
-      createOne: "Create one",
-      toGetStarted: "to get started.",
+      intro: "Log in with your caretaker account to see your requests, schedule and verification.",
+      logIn: "Log in",
+      signUp: "Join as a caretaker",
     },
     nav: {
       aria: "Dashboard sections",
@@ -130,7 +127,6 @@ export const providerDashboardMessages = defineMessages<{
       verification: "Profile & verification",
       reviews: "Ratings & reviews",
     },
-    switcher: { label: "Your caretaker profiles", open: "Open provider dashboard", failed: "Could not switch profile" },
     overview: {
       title: "Provider dashboard",
       customerPays: (amount) => `Customer pays ${amount}`,
@@ -259,11 +255,9 @@ export const providerDashboardMessages = defineMessages<{
     gate: {
       title: "सेवा प्रदाता डैशबोर्ड",
       notFound: "यह देखभालकर्ता प्रोफ़ाइल नहीं मिली। ",
-      openSaved: "इस डिवाइस पर सेव की गई कोई देखभालकर्ता प्रोफ़ाइल खोलें, या",
-      logIn: "देखभालकर्ता के रूप में लॉग इन करें",
-      deviceOnly: "देखभालकर्ता अकाउंट केवल उसी डिवाइस से खुलते हैं जिस पर वे बनाए गए थे।",
-      createOne: "नया अकाउंट बनाएँ",
-      toGetStarted: "और शुरू करें।",
+      intro: "अपने अनुरोध, शेड्यूल और सत्यापन देखने के लिए अपने देखभालकर्ता अकाउंट से लॉग इन करें।",
+      logIn: "लॉग इन करें",
+      signUp: "देखभालकर्ता के रूप में जुड़ें",
     },
     nav: {
       aria: "डैशबोर्ड के हिस्से",
@@ -273,7 +267,6 @@ export const providerDashboardMessages = defineMessages<{
       verification: "प्रोफ़ाइल और सत्यापन",
       reviews: "रेटिंग और रिव्यू",
     },
-    switcher: { label: "आपकी देखभालकर्ता प्रोफ़ाइलें", open: "सेवा प्रदाता डैशबोर्ड खोलें", failed: "प्रोफ़ाइल नहीं बदली जा सकी" },
     overview: {
       title: "सेवा प्रदाता डैशबोर्ड",
       customerPays: (amount) => `ग्राहक देगा ${amount}`,

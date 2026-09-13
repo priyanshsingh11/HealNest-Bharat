@@ -1,42 +1,35 @@
-import Link from "next/link";
 import { KindBadge, VerificationBadge, VerifiedTick } from "@/components/category-meta";
 import { ProviderDashboardNav } from "@/components/dashboard/provider-nav";
-import { ProviderSwitcher } from "@/components/dashboard/provider-switcher";
 import { ProviderAvatar } from "@/components/provider-avatar";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
 import { getMessages } from "@/lib/i18n/server";
 import type { ProviderProfile } from "@/types";
 
-/** Shown when nobody is signed in as a caretaker. Only profiles registered on this device can be opened. */
+/** Shown when nobody is logged in as a caretaker. */
 export async function ProviderGate({ missing = false }: { missing?: boolean }) {
   const { gate: t } = await getMessages(providerDashboardMessages);
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <h1 className="text-2xl font-extrabold">{t.title}</h1>
-      <p className="mt-2 text-ink-muted">
-        {missing ? t.notFound : ""}
-        {t.openSaved}{" "}
-        <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
-          {t.logIn}
-        </Link>
-        .
-      </p>
       <Card className="mt-6 p-6">
-        <ProviderSwitcher />
-        <p className="mt-3 text-sm text-ink-muted">
-          {t.deviceOnly}{" "}
-          <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
-            {t.createOne}
-          </Link>{" "}
-          {t.toGetStarted}
+        <p className="text-ink-muted">
+          {missing ? t.notFound : ""}
+          {t.intro}
         </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <ButtonLink href="/login?next=/dashboard/provider">{t.logIn}</ButtonLink>
+          <ButtonLink href="/login?mode=signup&as=caretaker" variant="secondary">
+            {t.signUp}
+          </ButtonLink>
+        </div>
       </Card>
     </div>
   );
 }
 
-/** Caretaker dashboard header: photo, name with the verified tick, status badges, profile switcher and section tabs. */
+/** Caretaker dashboard header: photo, name with the verified tick, status badges and section tabs. */
 export function ProviderDashboardHeader({ provider, eyebrow }: { provider: ProviderProfile; eyebrow: string }) {
   return (
     <>
@@ -55,7 +48,6 @@ export function ProviderDashboardHeader({ provider, eyebrow }: { provider: Provi
             </div>
           </div>
         </div>
-        <ProviderSwitcher currentProviderId={provider.id} />
       </div>
       <ProviderDashboardNav />
     </>

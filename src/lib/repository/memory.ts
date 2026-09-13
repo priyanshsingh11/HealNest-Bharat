@@ -1,7 +1,6 @@
 import { conflict, notFound } from "@/lib/errors";
 import type { SeedData } from "@/lib/seed";
 import type {
-  AccountDevice,
   AuditLogEntry,
   Booking,
   CategoryId,
@@ -36,10 +35,8 @@ export class MemoryRepository implements CareRepository {
   readonly kind = "memory" as const;
   private readonly state: SeedData & { auditLogs: AuditLogEntry[] };
   private auditSeq = 0;
-  /** app user id → Supabase Auth user id. */
+  /** app user id → login (Auth user) id. */
   private readonly authLinks = new Map<string, string>();
-  /** Device token hash → the account it was issued for. */
-  private readonly devices = new Map<string, AccountDevice>();
 
   constructor(seed: SeedData) {
     this.state = { ...clone(seed), auditLogs: [] };
@@ -70,27 +67,17 @@ export class MemoryRepository implements CareRepository {
     this.authLinks.set(userId, authUserId);
   }
 
+  async findUserByAuthId(authUserId: string) {
+    for (const [userId, linked] of this.authLinks) if (linked === authUserId) return this.getUser(userId);
+    return null;
+  }
+
   async deleteUser(id: string) {
     const referenced = this.state.providers.some((p) => p.userId === id) || this.state.bookings.some((b) => b.userId === id);
     if (referenced) return false;
     this.state.users = this.state.users.filter((u) => u.id !== id);
     this.authLinks.delete(id);
-    for (const [hash, device] of this.devices) if (device.userId === id) this.devices.delete(hash);
     return true;
-  }
-
-  async registerDevice(device: AccountDevice) {
-    this.devices.set(device.tokenHash, clone(device));
-  }
-
-  async findDeviceUser(tokenHash: string) {
-    return this.devices.get(tokenHash)?.userId ?? null;
-  }
-
-  async listDevices(userId: string) {
-    return clone([...this.devices.values()].filter((d) => d.userId === userId)).sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt),
-    );
   }
 
   async listCategories() {

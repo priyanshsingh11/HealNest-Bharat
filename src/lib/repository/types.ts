@@ -1,5 +1,4 @@
 import type {
-  AccountDevice,
   ApplicationStatus,
   AuditLogEntry,
   AvailabilitySlot,
@@ -75,17 +74,12 @@ export interface CareRepository {
   listUsers(filter?: UserFilter): Promise<User[]>;
   /** Throws a 409 if the id is taken. */
   createUser(user: User): Promise<User>;
-  /** Links the app user to a Supabase Auth account, moving the link off any other app user. */
+  /** Links the app user to a login (Supabase Auth user id), moving the link off any other app user. */
   linkAuthUser(userId: string, authUserId: string): Promise<void>;
+  /** The app user linked to a login, or null. */
+  findUserByAuthId(authUserId: string): Promise<User | null>;
   /** Returns false (and keeps the row) if something still references the user. */
   deleteUser(id: string): Promise<boolean>;
-
-  /** Records that an account may be logged into from this device. Re-registering the same hash is a no-op. */
-  registerDevice(device: AccountDevice): Promise<void>;
-  /** The account a device secret was issued for, or null if the hash is unknown. */
-  findDeviceUser(tokenHash: string): Promise<string | null>;
-  /** Devices registered for an account, newest first. */
-  listDevices(userId: string): Promise<AccountDevice[]>;
 
   listCategories(): Promise<Category[]>;
   updateCategory(id: CategoryId, patch: CategoryPatch): Promise<Category>;

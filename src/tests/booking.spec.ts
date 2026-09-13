@@ -1,23 +1,24 @@
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
-import { STAFF_EMAIL, STAFF_PASSCODE } from "../../playwright.config";
+import { SESSION_SECRET, STAFF_EMAIL, STAFF_PASSCODE } from "../../playwright.config";
+import { signSessionToken } from "../lib/session-token";
 
 // End-to-end smoke test: location → category → provider → booking → confirmation.
 // Runs against the in-memory data source (see playwright.config.ts), which starts with no providers, so the suite first
 // signs up a nurse, opens her availability and has the admin verify her — all through the public API.
 
 const PHOTO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==";
-/** `token` is the device secret sign-up issued for this nurse; logging in as her requires presenting it. */
-let nurse: { id: string; name: string; token: string };
+const PASSWORD = "nurse-password-123";
+let nurse: { id: string; name: string; email: string };
 
 /** IST calendar date, `days` from today. */
 function istDate(days: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(Date.now() + days * 24 * 3600 * 1000));
 }
 
-/** An admin session is just the role cookie; see src/lib/session.ts. */
+/** Staff sign-in needs an emailed code, so the suite signs an admin session with the test server's secret instead. */
 const ADMIN_COOKIE = {
-  name: "hn_role",
-  value: "admin",
+  name: "hn_session",
+  value: signSessionToken({ role: "admin", userId: "admin_demo", providerId: null, exp: Date.now() + 3600_000 }, SESSION_SECRET),
   domain: "localhost",
   path: "/",
   expires: -1,
@@ -38,9 +39,9 @@ test.beforeAll(async ({ playwright }, testInfo) => {
   const email = `nurse-${Date.now()}@example.test`;
   const phone = "9876543210";
 
-  const { session, account } = await json(
+  const { session } = await json(
     await api.post("/api/accounts", {
-      data: { type: "caretaker", name, email, phone, category: "nurse", gender: "female", localityId: "del-cp", languages: ["Hindi", "English"], yearsExperience: 6 },
+      data: { type: "caretaker", name, email, phone, password: PASSWORD, category: "nurse", gender: "female", localityId: "del-cp", languages: ["Hindi", "English"], yearsExperience: 6 },
     }),
   );
   const providerId: string = session.providerId;
@@ -88,7 +89,7 @@ test.beforeAll(async ({ playwright }, testInfo) => {
   await json(await admin.patch(`/api/admin/verification/${application.id}`, { data: { decision: "approve" } }));
   await admin.dispose();
   await api.dispose();
-  nurse = { id: providerId, name, token: account.token };
+  nurse = { id: providerId, name, email };
 });
 
 function collectConsoleErrors(page: Page) {
@@ -104,10 +105,10 @@ function collectConsoleErrors(page: Page) {
 test("customer books a home nurse from the homepage", async ({ page, isMobile }) => {
   const errors = collectConsoleErrors(page);
 
-  // Booking needs a customer account. The demo sign-up logs this browser into a fresh one.
+  // Booking needs a customer account. Signing up logs this browser into a fresh one.
   await json(
     await page.request.post("/api/accounts", {
-      data: { type: "customer", name: "Test Customer", email: `customer-${Date.now()}@example.test`, phone: "9876543210" },
+      data: { type: "customer", name: "Test Customer", email: `customer-${Date.now()}@example.test`, phone: "9876543210", password: "customer-password-1" },
     }),
   );
 
@@ -175,45 +176,55 @@ test("provider profile opens directly by URL", async ({ page }) => {
   await expect(page.getByText("Medical service", { exact: true }).first()).toBeVisible();
 });
 
-test("a caretaker dashboard needs this device's account", async ({ page }) => {
-  // No account registered in this browser: the dashboard offers nothing to open.
+test("a caretaker logs in with email and password to open the dashboard", async ({ page }) => {
+  // Nobody logged in: the dashboard only offers log in and sign-up.
   await page.goto("/dashboard/provider");
   await expect(page.getByRole("heading", { name: "Provider dashboard" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open provider dashboard" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Incoming requests/ })).toHaveCount(0);
 
-  // The device secret from sign-up is what opens it.
-  await page.request.post("/api/session", { data: { role: "provider", providerId: nurse.id, deviceToken: nurse.token } });
-  await page.goto("/dashboard/provider");
+  await page.goto("/login");
+  await page.getByTestId("login-email").fill(nurse.email);
+  await page.getByTestId("login-password").fill(PASSWORD);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/dashboard\/provider/);
   await expect(page.getByRole("heading", { name: /Incoming requests/ })).toBeVisible();
 
   await page.context().clearCookies();
 });
 
-test("logging in as another account needs that account's device secret", async ({ page }) => {
-  // A well-formed secret that was never issued for this account, and the account id on its own, both fail.
-  const forged = "x".repeat(43);
-  for (const data of [
-    { role: "provider", providerId: nurse.id, deviceToken: forged },
-    { role: "provider", providerId: nurse.id },
-  ]) {
-    const response = await page.request.post("/api/session", { data });
-    expect(response.status()).toBe(403);
-  }
+test("a wrong password, or an edited cookie, opens nothing", async ({ page, context }) => {
+  await page.goto("/login");
+  await page.getByTestId("login-email").fill(nurse.email);
+  await page.getByTestId("login-password").fill("not-the-password");
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByText("Email or password is incorrect.")).toBeVisible();
 
+  // The old unsigned cookies no longer mean anything.
+  await context.addCookies([
+    { ...ADMIN_COOKIE, name: "hn_role", value: "admin" },
+    { ...ADMIN_COOKIE, name: "hn_provider", value: nurse.id },
+  ]);
+  await page.goto("/dashboard/admin");
+  await expect(page.getByRole("heading", { name: "Provider verification" })).toHaveCount(0);
   await page.goto("/dashboard/provider");
-  await expect(page.getByRole("heading", { name: "Provider dashboard" })).toBeVisible();
-  await page.context().clearCookies();
+  await expect(page.getByRole("heading", { name: /Incoming requests/ })).toHaveCount(0);
+  await context.clearCookies();
 });
 
-test("the login page never lists accounts", async ({ page }) => {
+test("the login page has log in and sign up, and never lists accounts", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByText("No customer account on this device")).toBeVisible();
+  await expect(page.getByTestId("login-form")).toBeVisible();
   await expect(page.getByText(nurse.name)).toHaveCount(0);
 
+  await page.getByTestId("auth-tab-signup").click();
+  await expect(page.getByTestId("create-customer-form")).toBeVisible();
   // The radio itself is sr-only, so click its card, the way a sighted user does.
   await page.locator("label:has([data-testid=login-as-caretaker])").click();
-  await expect(page.getByText("No caretaker account on this device")).toBeVisible();
-  await expect(page.getByText(nurse.name)).toHaveCount(0);
+  await expect(page.getByTestId("create-caretaker-form")).toBeVisible();
+
+  await page.getByTestId("auth-tab-login").click();
+  await page.getByTestId("forgot-password").click();
+  await expect(page.getByTestId("password-reset")).toBeVisible();
 });
 
 test("staff sign-in needs the passcode and a listed staff address", async ({ page }) => {
@@ -261,7 +272,7 @@ test("the admin dashboard renders for an admin session", async ({ page, context 
 });
 
 test("provider dashboard pages load", async ({ page }) => {
-  await page.request.post("/api/session", { data: { role: "provider", providerId: nurse.id, deviceToken: nurse.token } });
+  await json(await page.request.post("/api/session", { data: { email: nurse.email, password: PASSWORD } }));
 
   await page.goto("/dashboard/provider");
   await expect(page.getByRole("heading", { name: "Today's patient queue" })).toBeVisible();
