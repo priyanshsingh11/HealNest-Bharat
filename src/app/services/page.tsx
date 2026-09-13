@@ -5,22 +5,31 @@ import { EmergencyBanner } from "@/components/emergency-banner";
 import { ServiceScopeAccordion } from "@/components/service-scope-accordion";
 import { ButtonLink } from "@/components/ui/button";
 import { AVAILABLE_CARE_SERVICES, CARE_SERVICES, isCareServiceComingSoon } from "@/lib/care-services";
-import { bookableCategories, categoryName, isComingSoon } from "@/lib/categories";
+import { bookableCategories, isComingSoon } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { formatMoney } from "@/lib/formatters";
+import { domainMessages, localizeCareService } from "@/lib/i18n/messages/domain";
+import { servicesMessages } from "@/lib/i18n/messages/services";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 import { toQuery } from "@/lib/location";
 import type { CareServiceId } from "@/types";
 
-export const metadata: Metadata = { title: "Home care services" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getMessages(servicesMessages);
+  return { title: t.metaTitle };
+}
 
 export default async function ServicesPage() {
   const repo = getRepository();
-  const [services, providers, categories, config] = await Promise.all([
+  const [services, providers, categories, config, locale] = await Promise.all([
     repo.listServices(),
     repo.listProviders(),
     repo.listCategories(),
     repo.getPlatformConfig(),
+    getLocale(),
   ]);
+  const t = servicesMessages[locale];
+  const domain = domainMessages[locale];
   const activeProviders = new Set(providers.filter((p) => p.active).map((p) => p.id));
   const activeCategories = new Set(bookableCategories(categories).map((c) => c.id));
 
@@ -38,19 +47,18 @@ export default async function ServicesPage() {
 
       <section className="hero-surface">
         <div className="mx-auto max-w-7xl px-4 pt-10 pb-8 sm:px-6">
-          <p className="text-sm font-bold uppercase tracking-wider text-brand-700">Our services</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Care at home, done properly.</h1>
+          <p className="text-sm font-bold uppercase tracking-wider text-brand-700">{t.eyebrow}</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{t.heading}</h1>
           <p className="mt-3 max-w-3xl text-lg text-ink-muted">
-            {AVAILABLE_CARE_SERVICES.length} home services from verified nurses, physiotherapists and caregivers, with{" "}
-            {CARE_SERVICES.length - AVAILABLE_CARE_SERVICES.length} more coming soon. Prices below are starting visit fees.
-            Your full itemised quote appears before you confirm.
+            {t.intro(AVAILABLE_CARE_SERVICES.length, CARE_SERVICES.length - AVAILABLE_CARE_SERVICES.length)}
           </p>
         </div>
       </section>
 
       <div className="mx-auto max-w-7xl px-4 pt-8 pb-12 sm:px-6">
         <ul className="grid gap-4 md:grid-cols-2">
-          {CARE_SERVICES.map((service) => {
+          {CARE_SERVICES.map((english) => {
+            const service = localizeCareService(english, locale);
             const soon = isCareServiceComingSoon(service);
             const from = soon ? null : startingPrice(service.id);
             return (
@@ -65,7 +73,7 @@ export default async function ServicesPage() {
                       {soon && <ComingSoonBadge />}
                     </div>
                     <p className="text-sm font-semibold text-ink-muted">
-                      {soon ? "Not open for bookings yet" : from === null ? "Currently unavailable" : <>From {formatMoney(from)}</>}
+                      {soon ? t.notOpen : from === null ? t.unavailable : t.from(formatMoney(from))}
                     </p>
                   </div>
                 </div>
@@ -92,19 +100,19 @@ export default async function ServicesPage() {
 
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
                   <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-ink-muted">
-                    <span className="uppercase tracking-wide">Provided by</span>
+                    <span className="uppercase tracking-wide">{t.providedBy}</span>
                     {service.providedBy
                       .filter((category) => activeCategories.has(category) || isComingSoon(category))
                       .map((category) => (
                         <span key={category} className="inline-flex items-center gap-1 text-ink">
                           <CategoryIcon category={category} className="size-3.5" />
-                          {categoryName(category)}
+                          {domain.categories[category].name}
                         </span>
                       ))}
                   </p>
                   {from !== null && (
                     <ButtonLink size="sm" href={`/discover${toQuery({ service: service.id })}`} data-testid={`find-${service.id}`}>
-                      Find providers <ArrowRight aria-hidden className="size-4" />
+                      {t.findProviders} <ArrowRight aria-hidden className="size-4" />
                     </ButtonLink>
                   )}
                 </div>
@@ -113,10 +121,7 @@ export default async function ServicesPage() {
           })}
         </ul>
 
-        <p className="mt-8 max-w-3xl text-sm text-ink-muted">
-          Home visits are for non-emergency needs only. Medicines and injections are administered only against a valid
-          prescription from a registered medical practitioner. For emergencies, dial {config.emergencyNumber}.
-        </p>
+        <p className="mt-8 max-w-3xl text-sm text-ink-muted">{t.disclaimer(config.emergencyNumber)}</p>
       </div>
     </>
   );

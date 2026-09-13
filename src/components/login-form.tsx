@@ -6,29 +6,23 @@ import { useState, useTransition } from "react";
 import { CategoryIcon, ComingSoonBadge, KIND_TILE } from "@/components/category-meta";
 import { CreateAccountForm } from "@/components/create-account-form";
 import { Button } from "@/components/ui/button";
-import { categoryKind, isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
+import { categoryKind, isComingSoon } from "@/lib/categories";
 import { apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
 import { forgetDeviceAccount, type DeviceAccount } from "@/lib/device-accounts";
+import { useLocale, useMessages } from "@/lib/i18n/client";
+import { authMessages } from "@/lib/i18n/messages/auth";
+import { domainMessages } from "@/lib/i18n/messages/domain";
 import { useDeviceAccounts } from "@/lib/use-device-accounts";
 import type { CategoryId } from "@/types";
 
 export type AccountType = "customer" | "caretaker";
 type AccountMode = "existing" | "new";
 
-const ACCOUNT_TYPES: { value: AccountType; title: string; body: string; icon: LucideIcon }[] = [
-  {
-    value: "customer",
-    title: "Customer",
-    body: "Book home nursing, physiotherapy, nannies, caregivers and more for yourself or your family.",
-    icon: UserRound,
-  },
-  {
-    value: "caretaker",
-    title: "Caretaker",
-    body: "Nurses, nannies, caregivers and physiotherapists who provide care at home.",
-    icon: HeartHandshake,
-  },
+/** Title and description come from the message file, keyed by `value`. */
+const ACCOUNT_TYPES: { value: AccountType; icon: LucideIcon }[] = [
+  { value: "customer", icon: UserRound },
+  { value: "caretaker", icon: HeartHandshake },
 ];
 
 /** Radio-card styling: the native radio is visually hidden, the card shows checked and focus states. */
@@ -39,8 +33,9 @@ const OPTION_CARD =
 
 /** Toggle between logging into an account saved on this device and creating a new one. */
 function ModeSwitch({ mode, onChange }: { mode: AccountMode; onChange: (mode: AccountMode) => void }) {
+  const t = useMessages(authMessages).login;
   return (
-    <div role="group" aria-label="Account" className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-canvas p-1 text-sm font-semibold ring-1 ring-line">
+    <div role="group" aria-label={t.modeGroup} className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-canvas p-1 text-sm font-semibold ring-1 ring-line">
       {(["existing", "new"] as const).map((value) => (
         <button
           key={value}
@@ -53,7 +48,7 @@ function ModeSwitch({ mode, onChange }: { mode: AccountMode; onChange: (mode: Ac
           )}
           data-testid={`account-mode-${value}`}
         >
-          {value === "existing" ? "Saved on this device" : "New account"}
+          {value === "existing" ? t.modeExisting : t.modeNew}
         </button>
       ))}
     </div>
@@ -62,16 +57,16 @@ function ModeSwitch({ mode, onChange }: { mode: AccountMode; onChange: (mode: Ac
 
 /** Shown on a device with no account of this kind saved: there is nothing to pick, so point at sign-up. */
 function NoAccounts({ type, onCreate }: { type: AccountType; onCreate: () => void }) {
+  const t = useMessages(authMessages).login.noAccounts;
   return (
     <div className="mt-4 rounded-xl border border-dashed border-line bg-canvas p-5 text-center">
       <Laptop aria-hidden className="mx-auto size-6 text-ink-muted" />
-      <p className="mt-2 text-sm font-semibold text-ink">No {type} account on this device</p>
+      <p className="mt-2 text-sm font-semibold text-ink">{t.title(type)}</p>
       <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
-        Accounts stay on the device they were created on, so nobody else can open yours. Create one here, or log in from
-        the device you already use.
+        {t.body}
       </p>
       <Button variant="secondary" className="mt-4" onClick={onCreate}>
-        Create a new account <ArrowRight aria-hidden className="size-4" />
+        {t.create} <ArrowRight aria-hidden className="size-4" />
       </Button>
     </div>
   );
@@ -94,6 +89,8 @@ type Props = {
  * is useless.
  */
 export function LoginForm({ professions, initialType, next, demoEnabled }: Props) {
+  const t = useMessages(authMessages).login;
+  const locale = useLocale();
   const router = useRouter();
   const [type, setType] = useState<AccountType>(initialType);
   const [mode, setMode] = useState<AccountMode>("existing");
@@ -126,7 +123,7 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
         router.refresh();
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not log in");
+      setError(e instanceof Error ? e.message : t.logInFailed);
       setSubmitting(false);
     }
   }
@@ -134,12 +131,12 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
   // Called as a plain function rather than rendered as a nested component: a component declared inside another
   // component is a new type on every render, which would remount the radios and drop focus mid-click.
   function savedAccounts() {
-    if (!hydrated) return <p className="mt-4 text-sm text-ink-muted">Checking this device…</p>;
+    if (!hydrated) return <p className="mt-4 text-sm text-ink-muted">{t.checkingDevice}</p>;
     if (saved.length === 0) return <NoAccounts type={type} onCreate={() => setMode("new")} />;
     return (
       <>
         <fieldset className="mt-4">
-          <legend className="text-sm font-semibold text-ink">Accounts on this device</legend>
+          <legend className="text-sm font-semibold text-ink">{t.savedLegend}</legend>
           <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto p-0.5">
             {saved.map((account) => (
               <li key={account.id} className="relative">
@@ -167,8 +164,8 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
                 <button
                   type="button"
                   onClick={() => forgetDeviceAccount(account.id)}
-                  aria-label={`Remove ${account.name} from this device`}
-                  title="Remove from this device"
+                  aria-label={t.removeAria(account.name)}
+                  title={t.removeTitle}
                   className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-muted transition hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sea-600/40"
                 >
                   <X aria-hidden className="size-4" />
@@ -184,7 +181,7 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
           onClick={() => selected && logIn(selected)}
           data-testid="login-submit"
         >
-          {selected ? `Log in as ${selected.name}` : "Choose an account"} <ArrowRight aria-hidden className="size-4" />
+          {selected ? t.logInAsName(selected.name) : t.chooseAccount} <ArrowRight aria-hidden className="size-4" />
         </Button>
       </>
     );
@@ -193,21 +190,21 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
   return (
     <div>
       <div className="text-center">
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-ink">Log in to HealNest Bharat</h1>
-        <p className="mt-2 text-ink-muted">Tell us how you use HealNest so we can take you to the right place.</p>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-ink">{t.heading}</h1>
+        <p className="mt-2 text-ink-muted">{t.intro}</p>
       </div>
 
       {!demoEnabled && (
         <p role="status" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Sign-in is turned off in this deployment.
+          {t.signInOff}
         </p>
       )}
 
       <fieldset className="mt-8">
-        <legend className="mb-3 text-sm font-bold text-ink">I want to log in as</legend>
+        <legend className="mb-3 text-sm font-bold text-ink">{t.logInAs}</legend>
         {/* Side by side even on phones; the description is hidden there to keep the form above the fold. */}
         <div className="grid grid-cols-2 gap-3">
-          {ACCOUNT_TYPES.map(({ value, title, body, icon: Icon }) => (
+          {ACCOUNT_TYPES.map(({ value, icon: Icon }) => (
             <label key={value} className={cn(OPTION_CARD, "flex-col gap-2 p-4 sm:p-5")}>
               <input
                 type="radio"
@@ -227,8 +224,8 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
                 </span>
                 {type === value && <Check aria-hidden className="size-5 text-brand-700" />}
               </span>
-              <span className="mt-1 text-base font-bold text-ink sm:text-lg">{title}</span>
-              <span className="hidden text-sm text-ink-muted sm:block">{body}</span>
+              <span className="mt-1 text-base font-bold text-ink sm:text-lg">{t.types[value].title}</span>
+              <span className="hidden text-sm text-ink-muted sm:block">{t.types[value].body}</span>
             </label>
           ))}
         </div>
@@ -238,9 +235,9 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
         {type === "customer" ? (
           <section aria-labelledby="customer-heading">
             <h2 id="customer-heading" className="font-bold text-ink">
-              Customer account
+              {t.customerHeading}
             </h2>
-            <p className="mt-1 text-sm text-ink-muted">Find and book care, track your visits and see every price before you confirm.</p>
+            <p className="mt-1 text-sm text-ink-muted">{t.customerIntro}</p>
             <ModeSwitch mode={mode} onChange={setMode} />
             {mode === "new" ? (
               <CreateAccountForm type="customer" profession={profession} next={next} enabled={demoEnabled} />
@@ -251,14 +248,14 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
         ) : (
           <section aria-labelledby="caretaker-heading">
             <h2 id="caretaker-heading" className="font-bold text-ink">
-              Caretaker account
+              {t.caretakerHeading}
             </h2>
             <ModeSwitch mode={mode} onChange={setMode} />
 
             {mode === "new" ? (
               <>
                 <fieldset className="mt-4">
-                  <legend className="text-sm font-semibold text-ink">What kind of care do you provide?</legend>
+                  <legend className="text-sm font-semibold text-ink">{t.professionLegend}</legend>
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {professions.map((id) => {
                       const soon = isComingSoon(id);
@@ -292,7 +289,7 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
                           </span>
                           <span className="min-w-0">
                             <span className={cn("block text-sm font-semibold break-words", soon ? "text-ink-muted" : "text-ink")}>
-                              {PROFESSION_LABELS[id]}
+                              {domainMessages[locale].professions[id]}
                             </span>
                             {soon && (
                               <span className="mt-1 block">
@@ -321,8 +318,7 @@ export function LoginForm({ professions, initialType, next, demoEnabled }: Props
       </div>
 
       <p className="mt-6 text-center text-xs text-ink-muted">
-        Accounts are tied to the device that created them — they are never listed for anyone else. Clearing this
-        browser&apos;s site data removes them from here.
+        {t.deviceNote}
       </p>
     </div>
   );

@@ -8,14 +8,10 @@ import { FieldError, Hint, Input, Label, Select } from "@/components/ui/field";
 import { ApiRequestError, apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
 import { initials } from "@/lib/formatters";
-import {
-  DOCUMENT_LABELS,
-  GOVT_ID_LABELS,
-  QUALIFICATION_OPTIONS,
-  REGISTRATION_LABELS,
-  VERIFICATION_REQUIREMENTS,
-  verificationSchemaFor,
-} from "@/lib/verification";
+import { useLocale } from "@/lib/i18n/client";
+import { domainMessages } from "@/lib/i18n/messages/domain";
+import { verificationMessages } from "@/lib/i18n/messages/verification";
+import { QUALIFICATION_OPTIONS, VERIFICATION_REQUIREMENTS, verificationSchemaFor } from "@/lib/verification";
 import { GOVT_ID_TYPES, type CategoryId, type DocumentKind, type GovtIdType, type VerificationDetails, type VerificationDocument } from "@/types";
 
 const COMMON_LANGUAGES = [
@@ -36,25 +32,19 @@ const COMMON_LANGUAGES = [
   "Bhojpuri",
 ];
 
-const PROFESSION_ROLE_HINT: Record<CategoryId, string> = {
-  nurse: "Staff nurse, ICU",
-  physiotherapist: "Physiotherapist, OPD",
-  phlebotomist: "Lab technician",
-  babysitter: "Live-out nanny",
-  caregiver: "Elder-care attendant",
-};
-
 const PHOTO_SIZE_PX = 320;
 
+type FormMessages = (typeof verificationMessages)["en"]["form"];
+
 /** Centre-crops to a square and downsizes, so the stored photo is a small JPEG data URL. */
-async function resizePhoto(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Choose an image file (JPEG, PNG or WebP).");
+async function resizePhoto(file: File, t: FormMessages): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error(t.photoNotImage);
   const bitmap = await createImageBitmap(file);
   const side = Math.min(bitmap.width, bitmap.height);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = Math.min(PHOTO_SIZE_PX, side);
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Your browser couldn't process this photo.");
+  if (!context) throw new Error(t.photoUnsupported);
   context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return canvas.toDataURL("image/jpeg", 0.82);
@@ -107,6 +97,9 @@ type Props = {
 /** Caretaker verification form. Required fields and documents depend on the profession. */
 export function VerificationForm({ providerId, category, initial }: Props) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = verificationMessages[locale].form;
+  const domain = domainMessages[locale];
   const req = VERIFICATION_REQUIREMENTS[category];
   const [form, setForm] = useState({
     fullName: initial.fullName,
@@ -167,10 +160,10 @@ export function VerificationForm({ providerId, category, initial }: Props) {
   async function choosePhoto(file: File | undefined) {
     if (!file) return;
     try {
-      setPhotoUrl(await resizePhoto(file));
+      setPhotoUrl(await resizePhoto(file, t));
       setPhotoError(null);
     } catch (e) {
-      setPhotoError(e instanceof Error ? e.message : "Couldn't read that photo.");
+      setPhotoError(e instanceof Error ? e.message : t.photoUnreadable);
     }
   }
 
@@ -219,7 +212,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
       if (e instanceof ApiRequestError && e.issues.length) {
         setErrors(Object.fromEntries(e.issues.map((issue) => [errorPath(issue.path), issue.message])));
       }
-      setServerError(e instanceof Error ? e.message : "Could not submit your details");
+      setServerError(e instanceof Error ? e.message : t.submitFailed);
     } finally {
       setSubmitting(false);
     }
@@ -230,13 +223,10 @@ export function VerificationForm({ providerId, category, initial }: Props) {
       <div role="status" className="flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950" data-testid="verification-submitted">
         <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-emerald-700" />
         <div>
-          <p className="font-bold">Submitted for review</p>
-          <p className="mt-1 text-sm">
-            HealNest Bharat staff will check your details against your documents. You&apos;ll see the result on this page, and your
-            profile gets the blue verified tick once approved.
-          </p>
+          <p className="font-bold">{t.submittedTitle}</p>
+          <p className="mt-1 text-sm">{t.submittedBody}</p>
           <button type="button" className="mt-3 text-sm font-semibold underline underline-offset-2" onClick={() => setDone(false)}>
-            Edit and resubmit
+            {t.editResubmit}
           </button>
         </div>
       </div>
@@ -249,69 +239,69 @@ export function VerificationForm({ providerId, category, initial }: Props) {
     <form onSubmit={submit} noValidate className="space-y-6" data-testid="verification-form">
       {(errorCount > 0 || serverError) && (
         <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-900">
-          {serverError ?? `Please fix ${errorCount} ${errorCount === 1 ? "field" : "fields"} below.`}
+          {serverError ?? t.fixFields(errorCount)}
         </p>
       )}
 
-      <Section title="Identity & contact" description="As shown on your government ID. We keep only the last 4 characters of your ID number.">
+      <Section title={t.identityTitle} description={t.identityDescription}>
         <div className="flex flex-wrap items-center gap-4">
           <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-50 text-xl font-bold text-brand-800">
             {photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- local preview of a data URL
-              <img src={photoUrl} alt="Your profile photo" className="size-full object-cover" />
+              <img src={photoUrl} alt={t.photoAlt} className="size-full object-cover" />
             ) : (
               <span aria-hidden>{initials(form.fullName || "?")}</span>
             )}
           </div>
           <div>
             <label className={cn(buttonClass({ variant: "secondary", size: "sm" }), "cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sea-600")}>
-              <Camera aria-hidden className="size-4" /> {photoUrl ? "Change photo" : "Upload profile photo"}
+              <Camera aria-hidden className="size-4" /> {photoUrl ? t.changePhoto : t.uploadPhoto}
               <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => choosePhoto(e.target.files?.[0])} />
             </label>
-            <Hint>A clear, recent photo of your face. It appears on your profile once approved.</Hint>
+            <Hint>{t.photoHint}</Hint>
             <FieldError id="photoUrl-error" message={photoError ?? errors.photoUrl} />
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label htmlFor="fullName">Full name</Label>
+            <Label htmlFor="fullName">{t.fullName}</Label>
             <Input id="fullName" autoComplete="name" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} {...field("fullName")} />
             <FieldError id="fullName-error" message={errors.fullName} />
           </div>
           <div>
-            <Label htmlFor="phone">Mobile number</Label>
+            <Label htmlFor="phone">{t.phone}</Label>
             <Input id="phone" type="tel" autoComplete="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} {...field("phone")} />
             <FieldError id="phone-error" message={errors.phone} />
           </div>
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t.email}</Label>
             <Input id="email" type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} {...field("email")} />
             <FieldError id="email-error" message={errors.email} />
           </div>
           <div className="sm:col-span-2">
-            <Label htmlFor="addressText">Address</Label>
+            <Label htmlFor="addressText">{t.address}</Label>
             <Input id="addressText" autoComplete="street-address" value={form.addressText} onChange={(e) => set("addressText", e.target.value)} {...field("addressText")} />
             <FieldError id="addressText-error" message={errors.addressText} />
           </div>
           <div>
-            <Label htmlFor="city">City</Label>
+            <Label htmlFor="city">{t.city}</Label>
             <Input id="city" autoComplete="address-level2" value={form.city} onChange={(e) => set("city", e.target.value)} {...field("city")} />
             <FieldError id="city-error" message={errors.city} />
           </div>
           <div className="grid grid-cols-[1fr_7rem] gap-3">
             <div>
-              <Label htmlFor="govtIdType">Government ID</Label>
+              <Label htmlFor="govtIdType">{t.govtId}</Label>
               <Select id="govtIdType" value={form.govtIdType} onChange={(e) => set("govtIdType", e.target.value as GovtIdType)}>
                 {GOVT_ID_TYPES.map((type) => (
                   <option key={type} value={type}>
-                    {GOVT_ID_LABELS[type]}
+                    {domain.govtIds[type]}
                   </option>
                 ))}
               </Select>
             </div>
             <div>
-              <Label htmlFor="govtIdLast4">Last 4</Label>
+              <Label htmlFor="govtIdLast4">{t.last4}</Label>
               <Input
                 id="govtIdLast4"
                 maxLength={4}
@@ -328,10 +318,10 @@ export function VerificationForm({ providerId, category, initial }: Props) {
         </div>
       </Section>
 
-      <Section title="Professional details">
+      <Section title={t.professionalTitle}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="yearsExperience">Years of experience</Label>
+            <Label htmlFor="yearsExperience">{t.yearsExperience}</Label>
             <Input
               id="yearsExperience"
               type="number"
@@ -346,7 +336,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
           {req.registration && (
             <>
               <div>
-                <Label htmlFor="registrationNumber">{REGISTRATION_LABELS[category]} number</Label>
+                <Label htmlFor="registrationNumber">{t.registrationNumber(domain.registration[category])}</Label>
                 <Input
                   id="registrationNumber"
                   autoComplete="off"
@@ -357,7 +347,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                 <FieldError id="registrationNumber-error" message={errors.registrationNumber} />
               </div>
               <div className="sm:col-span-2">
-                <Label htmlFor="registrationCouncil">Registering council</Label>
+                <Label htmlFor="registrationCouncil">{t.registeringCouncil}</Label>
                 <Input
                   id="registrationCouncil"
                   value={form.registrationCouncil}
@@ -370,7 +360,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
           )}
           {req.police && (
             <div className="sm:col-span-2">
-              <Label htmlFor="policeVerificationRef">Police verification certificate number</Label>
+              <Label htmlFor="policeVerificationRef">{t.policeRef}</Label>
               <Input
                 id="policeVerificationRef"
                 autoComplete="off"
@@ -384,7 +374,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
         </div>
 
         <fieldset>
-          <legend className="text-sm font-semibold text-ink">Languages you speak</legend>
+          <legend className="text-sm font-semibold text-ink">{t.languages}</legend>
           <div className="mt-2 flex flex-wrap gap-2">
             {languageOptions.map((language) => {
               const checked = languages.includes(language);
@@ -402,15 +392,15 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                     checked={checked}
                     onChange={() => setLanguages((l) => (checked ? l.filter((x) => x !== language) : [...l, language]))}
                   />
-                  {language}
+                  {t.languageNames[language] ?? language}
                 </label>
               );
             })}
           </div>
           <div className="mt-2 flex max-w-sm gap-2">
             <Input
-              aria-label="Add another language"
-              placeholder="Another language"
+              aria-label={t.addLanguageAria}
+              placeholder={t.anotherLanguage}
               value={otherLanguage}
               onChange={(e) => setOtherLanguage(e.target.value)}
               onKeyDown={(e) => {
@@ -422,7 +412,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
               className="h-9 py-1"
             />
             <Button variant="secondary" size="sm" onClick={addLanguage}>
-              Add
+              {t.add}
             </Button>
           </div>
           <FieldError id="languages-error" message={errors.languages} />
@@ -430,7 +420,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
 
         <fieldset>
           <legend className="text-sm font-semibold text-ink">
-            Qualifications {req.qualifications ? "" : <span className="font-normal text-ink-muted">(optional)</span>}
+            {t.qualifications} {req.qualifications ? "" : <span className="font-normal text-ink-muted">{t.optional}</span>}
           </legend>
           <datalist id="qualification-options">
             {QUALIFICATION_OPTIONS[category].map((option) => (
@@ -445,7 +435,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
               return (
                 <li key={index} className="grid gap-3 rounded-xl bg-canvas p-3 sm:grid-cols-[10rem_1fr_6rem_auto] sm:items-start">
                   <div>
-                    <Label htmlFor={`${key}.degree`}>Qualification</Label>
+                    <Label htmlFor={`${key}.degree`}>{t.qualification}</Label>
                     <Input
                       id={`${key}.degree`}
                       list="qualification-options"
@@ -457,7 +447,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                     <FieldError id={`${key}.degree-error`} message={errors[`${key}.degree`]} />
                   </div>
                   <div>
-                    <Label htmlFor={`${key}.institution`}>University / college</Label>
+                    <Label htmlFor={`${key}.institution`}>{t.institution}</Label>
                     <Input
                       id={`${key}.institution`}
                       value={row.institution}
@@ -467,7 +457,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                     <FieldError id={`${key}.institution-error`} message={errors[`${key}.institution`]} />
                   </div>
                   <div>
-                    <Label htmlFor={`${key}.year`}>Year</Label>
+                    <Label htmlFor={`${key}.year`}>{t.year}</Label>
                     <Input
                       id={`${key}.year`}
                       type="number"
@@ -484,10 +474,10 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                     size="sm"
                     className="justify-self-end text-rose-700 sm:mt-7 sm:justify-self-auto"
                     onClick={() => setQualifications((rows) => rows.filter((_, i) => i !== index))}
-                    aria-label={`Remove qualification ${index + 1}`}
+                    aria-label={t.removeQualification(index + 1)}
                   >
                     <Trash2 aria-hidden className="size-4" />
-                    <span className="sm:sr-only">Remove</span>
+                    <span className="sm:sr-only">{t.remove}</span>
                   </Button>
                 </li>
               );
@@ -495,7 +485,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
           </ul>
           {qualifications.length < 6 && (
             <Button variant="secondary" size="sm" className="mt-3" onClick={() => setQualifications((rows) => [...rows, { degree: "", institution: "", year: "" }])}>
-              <Plus aria-hidden className="size-4" /> Add qualification
+              <Plus aria-hidden className="size-4" /> {t.addQualification}
             </Button>
           )}
           <FieldError id="qualifications-error" message={errors.qualifications} />
@@ -503,8 +493,8 @@ export function VerificationForm({ providerId, category, initial }: Props) {
       </Section>
 
       <Section
-        title="Work history"
-        description="Where you work now and where you have worked before. Our team may call the organisation to confirm your role, so give a contact person where you can."
+        title={t.workTitle}
+        description={t.workDescription}
       >
         <ul className="space-y-3">
           {employments.map((row, index) => {
@@ -515,43 +505,43 @@ export function VerificationForm({ providerId, category, initial }: Props) {
             return (
               <li key={index} className="rounded-xl bg-canvas p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink">{row.current ? "Current workplace" : `Workplace ${index + 1}`}</p>
+                  <p className="text-sm font-semibold text-ink">{row.current ? t.currentWorkplace : t.workplace(index + 1)}</p>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-rose-700"
                     onClick={() => setEmployments((rows) => rows.filter((_, i) => i !== index))}
-                    aria-label={`Remove workplace ${index + 1}`}
+                    aria-label={t.removeWorkplace(index + 1)}
                   >
                     <Trash2 aria-hidden className="size-4" />
-                    <span className="sm:sr-only">Remove</span>
+                    <span className="sm:sr-only">{t.remove}</span>
                   </Button>
                 </div>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <Label htmlFor={`${key}.organisation`}>Hospital, clinic, agency or family</Label>
+                    <Label htmlFor={`${key}.organisation`}>{t.organisation}</Label>
                     <Input
                       id={`${key}.organisation`}
                       value={row.organisation}
                       onChange={(e) => update({ organisation: e.target.value })}
-                      placeholder="e.g. Apollo Hospital, Indiranagar"
+                      placeholder={t.organisationPlaceholder}
                       aria-invalid={Boolean(errors[`${key}.organisation`]) || undefined}
                     />
                     <FieldError id={`${key}.organisation-error`} message={errors[`${key}.organisation`]} />
                   </div>
                   <div>
-                    <Label htmlFor={`${key}.role`}>Your role there</Label>
+                    <Label htmlFor={`${key}.role`}>{t.role}</Label>
                     <Input
                       id={`${key}.role`}
                       value={row.role}
                       onChange={(e) => update({ role: e.target.value })}
-                      placeholder={`e.g. ${PROFESSION_ROLE_HINT[category]}`}
+                      placeholder={t.rolePlaceholder(t.roleHint[category])}
                       aria-invalid={Boolean(errors[`${key}.role`]) || undefined}
                     />
                     <FieldError id={`${key}.role-error`} message={errors[`${key}.role`]} />
                   </div>
                   <div>
-                    <Label htmlFor={`${key}.city`}>City</Label>
+                    <Label htmlFor={`${key}.city`}>{t.city}</Label>
                     <Input
                       id={`${key}.city`}
                       value={row.city}
@@ -562,7 +552,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor={`${key}.startYear`}>From (year)</Label>
+                      <Label htmlFor={`${key}.startYear`}>{t.fromYear}</Label>
                       <Input
                         id={`${key}.startYear`}
                         type="number"
@@ -575,7 +565,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                       <FieldError id={`${key}.startYear-error`} message={errors[`${key}.startYear`]} />
                     </div>
                     <div>
-                      <Label htmlFor={`${key}.endYear`}>To (year)</Label>
+                      <Label htmlFor={`${key}.endYear`}>{t.toYear}</Label>
                       <Input
                         id={`${key}.endYear`}
                         type="number"
@@ -584,7 +574,7 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                         value={row.current ? "" : row.endYear}
                         disabled={row.current}
                         className="disabled:bg-canvas disabled:text-ink-muted"
-                        placeholder={row.current ? "Present" : undefined}
+                        placeholder={row.current ? t.present : undefined}
                         onChange={(e) => update({ endYear: e.target.value })}
                         aria-invalid={Boolean(errors[`${key}.endYear`]) || undefined}
                       />
@@ -598,24 +588,24 @@ export function VerificationForm({ providerId, category, initial }: Props) {
                       checked={row.current}
                       onChange={(e) => update({ current: e.target.checked, endYear: e.target.checked ? "" : row.endYear })}
                     />
-                    I work here now
+                    {t.workHereNow}
                   </label>
                   <div>
                     <Label htmlFor={`${key}.contactName`}>
-                      Contact person <span className="font-normal text-ink-muted">(optional)</span>
+                      {t.contactPerson} <span className="font-normal text-ink-muted">{t.optional}</span>
                     </Label>
                     <Input
                       id={`${key}.contactName`}
                       value={row.contactName}
                       onChange={(e) => update({ contactName: e.target.value })}
-                      placeholder="Matron, HR or the family member"
+                      placeholder={t.contactPlaceholder}
                       aria-invalid={Boolean(errors[`${key}.contactName`]) || undefined}
                     />
                     <FieldError id={`${key}.contactName-error`} message={errors[`${key}.contactName`]} />
                   </div>
                   <div>
                     <Label htmlFor={`${key}.contactPhone`}>
-                      Their mobile number <span className="font-normal text-ink-muted">(optional)</span>
+                      {t.contactPhone} <span className="font-normal text-ink-muted">{t.optional}</span>
                     </Label>
                     <Input
                       id={`${key}.contactPhone`}
@@ -638,13 +628,13 @@ export function VerificationForm({ providerId, category, initial }: Props) {
             size="sm"
             onClick={() => setEmployments((rows) => [...rows, emptyEmployment(rows.length === 0)])}
           >
-            <Plus aria-hidden className="size-4" /> Add {employments.length === 0 ? "workplace" : "previous workplace"}
+            <Plus aria-hidden className="size-4" /> {t.addWorkplace(employments.length === 0)}
           </Button>
         )}
         <FieldError id="employments-error" message={errors.employments} />
       </Section>
 
-      <Section title="Documents" description="PDF or photo, up to 10 MB each. In this demo only the file name is recorded — files aren't uploaded.">
+      <Section title={t.documentsTitle} description={t.documentsDescription}>
         <ul className="space-y-2">
           {documentKinds.map((kind) => {
             const doc = documents[kind];
@@ -653,23 +643,23 @@ export function VerificationForm({ providerId, category, initial }: Props) {
               <li key={kind} className="flex flex-col gap-2 rounded-xl border border-line p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    {DOCUMENT_LABELS[kind]} {required ? <span className="text-rose-700">*</span> : <span className="text-xs font-normal text-ink-muted">(optional)</span>}
+                    {domain.documents[kind]} {required ? <span className="text-rose-700">*</span> : <span className="text-xs font-normal text-ink-muted">{t.optional}</span>}
                   </p>
                   {doc ? (
                     <p className="flex items-center gap-1 truncate text-xs text-emerald-800">
                       <FileCheck2 aria-hidden className="size-3.5 shrink-0" /> {doc.fileName} · {formatBytes(doc.sizeBytes)}
                     </p>
                   ) : (
-                    <p className="text-xs text-ink-muted">No file chosen</p>
+                    <p className="text-xs text-ink-muted">{t.noFile}</p>
                   )}
                 </div>
                 <label className={cn(buttonClass({ variant: "secondary", size: "sm" }), "shrink-0 cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sea-600")}>
-                  <Upload aria-hidden className="size-4" /> {doc ? "Replace" : "Choose file"}
+                  <Upload aria-hidden className="size-4" /> {doc ? t.replace : t.chooseFile}
                   <input
                     type="file"
                     accept="application/pdf,image/*"
                     className="sr-only"
-                    aria-label={`Upload ${DOCUMENT_LABELS[kind].toLowerCase()}`}
+                    aria-label={t.uploadDocument(domain.documents[kind])}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -694,16 +684,13 @@ export function VerificationForm({ providerId, category, initial }: Props) {
             onChange={(e) => setConfirm(e.target.checked)}
             aria-describedby={errors.confirmAccurate ? "confirmAccurate-error" : undefined}
           />
-          <span className="font-semibold text-ink">
-            I confirm these details are accurate, and I consent to HealNest Bharat checking them with the issuing council, police and ID
-            records.
-          </span>
+          <span className="font-semibold text-ink">{t.confirm}</span>
         </label>
         <FieldError id="confirmAccurate-error" message={errors.confirmAccurate} />
       </div>
 
       <Button type="submit" size="lg" disabled={submitting || pending} data-testid="submit-verification">
-        {submitting ? "Submitting…" : "Submit for verification"}
+        {submitting ? t.submitting : t.submit}
       </Button>
     </form>
   );

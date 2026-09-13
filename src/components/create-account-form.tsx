@@ -6,8 +6,10 @@ import { useId, useState, useTransition, type FormEvent, type ReactNode } from "
 import type { AccountType } from "@/components/login-form";
 import { Button } from "@/components/ui/button";
 import { FieldError, Hint, Input, Label, Select } from "@/components/ui/field";
-import { PROFESSION_LABELS } from "@/lib/categories";
 import { ApiRequestError, apiRequest } from "@/lib/client-api";
+import { useLocale, useMessages } from "@/lib/i18n/client";
+import { authMessages } from "@/lib/i18n/messages/auth";
+import { domainMessages } from "@/lib/i18n/messages/domain";
 import { rememberDeviceAccount, type DeviceAccount } from "@/lib/device-accounts";
 import { CaretakerLocationPicker } from "@/components/caretaker-location-picker";
 import type { CategoryId } from "@/types";
@@ -48,6 +50,8 @@ function Field({
 
 /** Sign-up for a customer or caretaker: creates the account and logs straight into it. */
 export function CreateAccountForm({ type, profession, next, enabled }: Props) {
+  const t = useMessages(authMessages).signUp;
+  const locale = useLocale();
   const id = useId();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +60,7 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
   const [issues, setIssues] = useState<Record<string, string>>({});
   const busy = !enabled || submitting || pending;
   const caretaker = type === "caretaker";
-  const professionLabel = PROFESSION_LABELS[profession].toLowerCase();
+  const professionLabel = domainMessages[locale].professions[profession].toLowerCase();
 
   /** id, name and error wiring for one input. */
   const control = (name: string) => ({
@@ -116,7 +120,7 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
         for (const issue of e.issues) byField[issue.path.split(".")[0]] ??= issue.message;
         setIssues(byField);
       }
-      setError(e instanceof Error ? e.message : "Could not create the account");
+      setError(e instanceof Error ? e.message : t.createFailed);
       setSubmitting(false);
     }
   }
@@ -124,19 +128,19 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
   return (
     <form onSubmit={submit} noValidate className="mt-4 space-y-4" data-testid={`create-${type}-form`}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field htmlFor={`${id}-name`} label="Full name" error={issues.name} className="sm:col-span-2">
+        <Field htmlFor={`${id}-name`} label={t.fullName} error={issues.name} className="sm:col-span-2">
           <Input
             {...control("name")}
             autoComplete="name"
             maxLength={60}
             required
-            placeholder={caretaker ? "e.g. Sunita Rawat" : "e.g. Aarav Sharma"}
+            placeholder={caretaker ? t.namePlaceholderCaretaker : t.namePlaceholderCustomer}
           />
         </Field>
-        <Field htmlFor={`${id}-email`} label="Email" error={issues.email}>
+        <Field htmlFor={`${id}-email`} label={t.email} error={issues.email}>
           <Input {...control("email")} type="email" autoComplete="email" maxLength={120} required placeholder="you@example.com" />
         </Field>
-        <Field htmlFor={`${id}-phone`} label="Mobile number" error={issues.phone}>
+        <Field htmlFor={`${id}-phone`} label={t.mobile} error={issues.phone}>
           <Input {...control("phone")} type="tel" autoComplete="tel" inputMode="tel" required placeholder="+91 98765 43210" />
         </Field>
       </div>
@@ -144,35 +148,35 @@ export function CreateAccountForm({ type, profession, next, enabled }: Props) {
       {caretaker && (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor={`${id}-gender`} label="Gender" error={issues.gender}>
+            <Field htmlFor={`${id}-gender`} label={t.gender} error={issues.gender}>
               <Select {...control("gender")} defaultValue="" required>
                 <option value="" disabled>
-                  Choose…
+                  {t.choose}
                 </option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="other">Other</option>
+                <option value="female">{t.female}</option>
+                <option value="male">{t.male}</option>
+                <option value="other">{t.other}</option>
               </Select>
             </Field>
             <div className="sm:col-span-2">
               <CaretakerLocationPicker id={`${id}-localityId`} error={issues.localityId} />
             </div>
-            <Field htmlFor={`${id}-languages`} label="Languages" error={issues.languages} hint="Separate with commas">
+            <Field htmlFor={`${id}-languages`} label={t.languages} error={issues.languages} hint={t.languagesHint}>
               <Input {...control("languages")} defaultValue="Hindi, English" autoComplete="off" />
             </Field>
-            <Field htmlFor={`${id}-yearsExperience`} label="Years of experience" error={issues.yearsExperience}>
+            <Field htmlFor={`${id}-yearsExperience`} label={t.yearsExperience} error={issues.yearsExperience}>
               <Input {...control("yearsExperience")} type="number" inputMode="numeric" min={0} max={60} step={1} defaultValue={0} />
             </Field>
           </div>
           <p className="rounded-xl bg-canvas p-3 text-xs text-ink-muted">
-            Your {professionLabel} profile starts <strong className="font-semibold text-ink">unverified</strong>, with standard
-            services and prices. Submit your documents from the dashboard to get verified — only verified caretakers can be booked.
+            {t.unverifiedBefore(professionLabel)} <strong className="font-semibold text-ink">{t.unverified}</strong>
+            {t.unverifiedAfter}
           </p>
         </>
       )}
 
       <Button type="submit" size="lg" className="w-full" disabled={busy} data-testid="create-account-submit">
-        {caretaker ? `Create ${professionLabel} account` : "Create customer account"} <ArrowRight aria-hidden className="size-4" />
+        {caretaker ? t.createCaretaker(professionLabel) : t.createCustomer} <ArrowRight aria-hidden className="size-4" />
       </Button>
       {error && (
         <p role="alert" className="text-sm font-medium text-rose-700">

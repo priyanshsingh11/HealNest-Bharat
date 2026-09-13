@@ -11,36 +11,23 @@ import { NursingScope } from "@/components/nursing-scope";
 import { ButtonLink } from "@/components/ui/button";
 import { isSignedIn } from "@/lib/auth";
 import { AVAILABLE_CARE_SERVICES } from "@/lib/care-services";
-import { bookableCategories, isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
+import { bookableCategories, isComingSoon } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { getRepository } from "@/lib/db";
 import { initials } from "@/lib/formatters";
+import type { Locale } from "@/lib/i18n/config";
+import { domainMessages } from "@/lib/i18n/messages/domain";
+import { homeMessages } from "@/lib/i18n/messages/home";
+import { getLocale } from "@/lib/i18n/server";
 import { toQuery } from "@/lib/location";
 import type { CategoryId, ProviderProfile } from "@/types";
 
+/** Icons for the trust points; their copy is in homeMessages.how.trust. */
 const TRUST_POINTS = [
-  {
-    icon: BadgeCheck,
-    title: "Verified professionals",
-    body: "Every provider shows their verification status and registration.",
-  },
-  {
-    icon: Receipt,
-    title: "Itemised pricing",
-    body: "See every charge, line by line, before you confirm.",
-  },
-  {
-    icon: Lock,
-    title: "Your location stays private",
-    body: "Shared with a provider only after you confirm a booking.",
-  },
-];
-
-const STEPS = [
-  { title: "Tell us where", body: "Search your area or use your current location." },
-  { title: "Choose a provider", body: "Compare distance, availability, ratings, credentials and prices." },
-  { title: "Request a visit", body: "Pick a time window, review the full quote and confirm." },
-];
+  { key: "verified", icon: BadgeCheck },
+  { key: "pricing", icon: Receipt },
+  { key: "privacy", icon: Lock },
+] as const;
 
 /** Background-removed team photo for the hero. Until it exists, the hero shows provider portrait cards. */
 const HERO_PHOTO = "/images/hero-team.png";
@@ -60,20 +47,13 @@ const HERO_PHOTO_ADJUST = { zoom: 1, moveX: 0, moveY: 28 };
 /** Hero portraits, left to right. The middle one is featured. */
 const HERO_TEAM: CategoryId[] = ["caregiver", "nurse", "physiotherapist"];
 
-const PROFESSION_PLURALS: Record<CategoryId, string> = {
-  nurse: "Nurses",
-  physiotherapist: "Physiotherapists",
-  phlebotomist: "Lab technicians",
-  babysitter: "Nannies",
-  caregiver: "Caregivers",
-};
-
 /** 3420 → "3.4k+"; small numbers stay exact. */
 function compactCount(n: number): string {
   return n >= 1000 ? `${Math.floor(n / 100) / 10}k+` : String(n);
 }
 
-function PortraitCard({ provider, featured }: { provider: ProviderProfile; featured: boolean }) {
+function PortraitCard({ provider, featured, locale }: { provider: ProviderProfile; featured: boolean; locale: Locale }) {
+  const domain = domainMessages[locale];
   return (
     <li className={cn("shrink-0", featured ? "w-[36%] -translate-y-8" : "w-[29%]")}>
       <Link
@@ -95,13 +75,13 @@ function PortraitCard({ provider, featured }: { provider: ProviderProfile; featu
         <div className="px-1.5 pt-2.5 pb-1.5 sm:px-2">
           <p className="truncate text-xs font-bold text-ink sm:text-sm">{provider.name}</p>
           <p className="truncate text-[11px] text-ink-muted sm:text-xs">
-            {PROFESSION_LABELS[provider.category]} · {provider.baseLocation.city}
+            {domain.professions[provider.category]} · {provider.baseLocation.city}
           </p>
           <p className="mt-1 flex min-w-0 items-center gap-1 text-[11px] sm:text-xs">
             <Star aria-hidden className="size-3.5 shrink-0 fill-amber-400 text-amber-500" />
             <span className="font-semibold">{provider.rating.toFixed(1)}</span>
             <BadgeCheck aria-hidden className="ml-1 size-3.5 shrink-0 text-emerald-600" />
-            <span className="truncate text-ink-muted">Verified</span>
+            <span className="truncate text-ink-muted">{domain.verified}</span>
           </p>
         </div>
       </Link>
@@ -110,7 +90,7 @@ function PortraitCard({ provider, featured }: { provider: ProviderProfile; featu
 }
 
 /** Concentric arcs, dot texture and floating plus signs behind the team photo (or provider portraits). */
-function HeroTeam({ team, photo }: { team: ProviderProfile[]; photo: string | null }) {
+function HeroTeam({ team, photo, locale }: { team: ProviderProfile[]; photo: string | null; locale: Locale }) {
   return (
     // Frame size: h-[…] is the height on phones / tablets (sm:) / desktops (lg:); max-w-xl is the width.
     // overflow-x-clip stops a zoomed photo from making the page scroll sideways on phones.
@@ -130,7 +110,7 @@ function HeroTeam({ team, photo }: { team: ProviderProfile[]; photo: string | nu
       {photo ? (
         <Image
           src={photo}
-          alt="A doctor, a nurse and a caregiver"
+          alt={homeMessages[locale].hero.photoAlt}
           fill
           priority
           // Requests a larger file than the frame so zooming in stays sharp.
@@ -144,7 +124,7 @@ function HeroTeam({ team, photo }: { team: ProviderProfile[]; photo: string | nu
       ) : (
         <ul className="absolute inset-x-0 bottom-6 flex items-end justify-center gap-2 px-2 sm:bottom-10 sm:gap-4">
           {team.map((provider, index) => (
-            <PortraitCard key={provider.id} provider={provider} featured={index === 1} />
+            <PortraitCard key={provider.id} provider={provider} featured={index === 1} locale={locale} />
           ))}
         </ul>
       )}
@@ -169,12 +149,14 @@ function Stat({ value, label, className }: { value: string; label: string; class
 
 export default async function HomePage() {
   const repo = getRepository();
-  const [categories, config, providers, signedIn] = await Promise.all([
+  const [categories, config, providers, signedIn, locale] = await Promise.all([
     repo.listCategories(),
     repo.getPlatformConfig(),
     repo.listProviders(),
     isSignedIn(),
+    getLocale(),
   ]);
+  const t = homeMessages[locale];
 
   const active = categories.filter((c) => c.active);
   const bookable = bookableCategories(categories);
@@ -193,24 +175,23 @@ export default async function HomePage() {
         {/* Bottom padding on phones keeps the stats clear of the floating pill below. */}
         <div className="mx-auto max-w-7xl px-4 pt-12 pb-14 sm:px-6 sm:pt-16 lg:pb-0">
           <p className="text-center text-xs font-bold tracking-[0.18em] text-brand-700 uppercase sm:text-sm">
-            Home visits · Across India
+            {t.hero.eyebrow}
           </p>
           <h1
             id="hero-heading"
             className="mx-auto mt-4 max-w-4xl text-center text-4xl leading-[1.1] font-extrabold tracking-tight text-ink sm:text-6xl"
           >
-            Trusted <span className="text-brand-gradient">Care</span> at Your Doorstep
+            {t.hero.headingBefore}
+            <span className="text-brand-gradient">{t.hero.headingHighlight}</span>
+            {t.hero.headingAfter}
           </h1>
 
           <div className="mt-4 grid items-end gap-8 lg:mt-6 lg:grid-cols-[1fr_minmax(0,36rem)_1fr]">
             {/* Centred under the headline on small screens; a left column beside the portraits on desktop. */}
             <div className="order-2 flex flex-col items-center space-y-6 text-center lg:order-1 lg:items-start lg:self-center lg:pb-16 lg:text-left">
-              <p className="max-w-md text-lg leading-relaxed text-ink-muted lg:max-w-xs">
-                Home nursing, injections & IV, physiotherapy and elderly care — from verified professionals near you, with
-                every rupee explained before you book. Home lab collection is coming soon.
-              </p>
+              <p className="max-w-md text-lg leading-relaxed text-ink-muted lg:max-w-xs">{t.hero.intro}</p>
               <a href="#find-care" className="inline-flex items-center gap-1.5 font-semibold text-brand-700 hover:underline">
-                Find a verified professional <ArrowDown aria-hidden className="size-4" />
+                {t.hero.findLink} <ArrowDown aria-hidden className="size-4" />
               </a>
               {/* Desktop only; phones show this count in the stats row. Hidden until someone is verified. */}
               {verified.length > 0 && (
@@ -220,23 +201,23 @@ export default async function HomePage() {
                   </span>
                   <div>
                     <p className="text-3xl font-bold tracking-tight text-ink">{compactCount(verified.length)}</p>
-                    <p className="text-sm text-ink-muted">verified professionals</p>
+                    <p className="text-sm text-ink-muted">{t.hero.verifiedCount}</p>
                   </div>
                 </div>
               )}
             </div>
 
             <div className="order-1 lg:order-2">
-              <HeroTeam team={team} photo={heroPhotoAvailable() ? HERO_PHOTO : null} />
+              <HeroTeam team={team} photo={heroPhotoAvailable() ? HERO_PHOTO : null} locale={locale} />
             </div>
 
             {/* Phones: one evenly spaced row with rules between. Desktop: a right-hand column. Zero counts are left out. */}
             <dl className="order-3 flex justify-center divide-x divide-brand-200 *:px-5 sm:*:px-8 lg:flex-col lg:items-end lg:justify-center lg:gap-8 lg:divide-x-0 lg:self-center lg:pb-16 lg:*:px-0">
               {verified.length > 0 && (
-                <Stat value={compactCount(verified.length)} label="Verified professionals" className="lg:hidden" />
+                <Stat value={compactCount(verified.length)} label={t.stats.verified} className="lg:hidden" />
               )}
-              <Stat value={String(AVAILABLE_CARE_SERVICES.length)} label="Home care services" />
-              {reviewTotal > 0 && <Stat value={compactCount(reviewTotal)} label="Reviews from families" />}
+              <Stat value={String(AVAILABLE_CARE_SERVICES.length)} label={t.stats.services} />
+              {reviewTotal > 0 && <Stat value={compactCount(reviewTotal)} label={t.stats.reviews} />}
             </dl>
           </div>
         </div>
@@ -245,13 +226,13 @@ export default async function HomePage() {
         <div className="relative z-10 -mb-9 flex justify-center px-4">
           <div className="rounded-full bg-white p-2 shadow-[0_18px_40px_-16px_rgb(30_64_140/0.5)] ring-1 ring-line">
             <ButtonLink href={signedIn ? "#find-care" : "/login"} size="lg" data-testid="hero-book">
-              Book a home visit
+              {t.hero.book}
             </ButtonLink>
           </div>
         </div>
       </section>
 
-      <section aria-label="Care professionals on HealNest Bharat" className="border-b border-line bg-white pt-16 pb-10">
+      <section aria-label={t.professionsAria} className="border-b border-line bg-white pt-16 pb-10">
         <Marquee>
           {(hidden) =>
             active.map((category) =>
@@ -259,7 +240,7 @@ export default async function HomePage() {
                 <li key={category.id} className="shrink-0 px-4 sm:px-6">
                   <span className="flex items-center gap-2.5 py-2 text-lg font-bold whitespace-nowrap text-ink-muted/70 sm:text-xl">
                     <CategoryIcon category={category.id} className="size-6 text-brand-600/60" />
-                    {PROFESSION_PLURALS[category.id]}
+                    {t.professionPlurals[category.id]}
                     <ComingSoonBadge />
                   </span>
                 </li>
@@ -271,7 +252,7 @@ export default async function HomePage() {
                     className="flex items-center gap-2.5 py-2 text-lg font-bold whitespace-nowrap text-ink-muted transition-colors hover:text-brand-700 sm:text-xl"
                   >
                     <CategoryIcon category={category.id} className="size-6 text-brand-600" />
-                    {PROFESSION_PLURALS[category.id]}
+                    {t.professionPlurals[category.id]}
                   </Link>
                 </li>
               ),
@@ -283,9 +264,11 @@ export default async function HomePage() {
       <section id="find-care" aria-labelledby="find-care-heading" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <h2 id="find-care-heading" className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            Find <span className="text-brand-gradient">care</span> near you
+            {t.findCare.headingBefore}
+            <span className="text-brand-gradient">{t.findCare.headingHighlight}</span>
+            {t.findCare.headingAfter}
           </h2>
-          <p className="mt-2 text-ink-muted">Choose your area, then the help you need.</p>
+          <p className="mt-2 text-ink-muted">{t.findCare.subtitle}</p>
         </div>
         <HomeSearch categories={active} />
       </section>
@@ -295,10 +278,10 @@ export default async function HomePage() {
       <section aria-labelledby="how-heading" className="border-t border-line bg-white">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16">
           <h2 id="how-heading" className="text-center text-3xl font-extrabold tracking-tight text-ink">
-            How it works
+            {t.how.heading}
           </h2>
           <ol className="mt-10 grid gap-8 md:grid-cols-3">
-            {STEPS.map((step, index) => (
+            {t.how.steps.map((step, index) => (
               <li key={step.title} className="flex gap-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-b from-brand-500 to-brand-700 font-bold text-white">
                   {index + 1}
@@ -310,23 +293,20 @@ export default async function HomePage() {
               </li>
             ))}
           </ol>
-          <ul aria-label="Why HealNest Bharat" className="mt-12 grid gap-6 border-t border-line pt-10 md:grid-cols-3">
-            {TRUST_POINTS.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="flex gap-4">
+          <ul aria-label={t.how.trustAria} className="mt-12 grid gap-6 border-t border-line pt-10 md:grid-cols-3">
+            {TRUST_POINTS.map(({ key, icon: Icon }) => (
+              <li key={key} className="flex gap-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-leaf-50 text-leaf-700">
                   <Icon aria-hidden className="size-5" />
                 </span>
                 <div>
-                  <h3 className="font-bold text-ink">{title}</h3>
-                  <p className="mt-1 text-sm text-ink-muted">{body}</p>
+                  <h3 className="font-bold text-ink">{t.how.trust[key].title}</h3>
+                  <p className="mt-1 text-sm text-ink-muted">{t.how.trust[key].body}</p>
                 </div>
               </li>
             ))}
           </ul>
-          <p className="mx-auto mt-10 max-w-3xl text-center text-sm text-ink-muted">
-            HealNest Bharat connects you with independent providers. It is not an emergency service and does not offer
-            diagnosis or treatment advice. Babysitters and caregivers provide non-medical support only.
-          </p>
+          <p className="mx-auto mt-10 max-w-3xl text-center text-sm text-ink-muted">{t.how.disclaimer}</p>
         </div>
       </section>
     </>

@@ -13,17 +13,16 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useLocale, useMessages } from "@/lib/i18n/client";
+import { translateError } from "@/lib/i18n/errors";
+import { authMessages } from "@/lib/i18n/messages/auth";
 import { findLocality, localityLabel, type Locality } from "@/lib/localities";
 
 const InteractiveLocationMap = dynamic(
   () => import("@/components/interactive-location-map"),
   {
     ssr: false,
-    loading: () => (
-      <div className="grid h-64 place-items-center rounded-xl border border-dashed border-line bg-canvas text-sm text-ink-muted">
-        Loading interactive map…
-      </div>
-    ),
+    loading: () => <MapLoading />,
   },
 );
 
@@ -49,16 +48,26 @@ export type ExactLocationPayload = {
   postcode?: string;
 };
 
+/** Labels live in the message file under `location.areas`, keyed by `id`. */
 const POPULAR_AREAS = [
-  { label: "Connaught Place, Delhi", lat: 28.6315, lng: 77.2167 },
-  { label: "Saket, South Delhi", lat: 28.5245, lng: 77.2066 },
-  { label: "Cyber City, Gurugram", lat: 28.4951, lng: 77.0885 },
-  { label: "Noida Sector 18", lat: 28.5708, lng: 77.3261 },
-  { label: "Indiranagar, Bengaluru", lat: 12.9719, lng: 77.6412 },
-  { label: "Bandra West, Mumbai", lat: 19.0596, lng: 72.8295 },
-  { label: "HSR Layout, Bengaluru", lat: 12.9121, lng: 77.6446 },
-  { label: "Salt Lake, Kolkata", lat: 22.5868, lng: 88.4178 },
-];
+  { id: "connaught", lat: 28.6315, lng: 77.2167 },
+  { id: "saket", lat: 28.5245, lng: 77.2066 },
+  { id: "cyberCity", lat: 28.4951, lng: 77.0885 },
+  { id: "noida18", lat: 28.5708, lng: 77.3261 },
+  { id: "indiranagar", lat: 12.9719, lng: 77.6412 },
+  { id: "bandra", lat: 19.0596, lng: 72.8295 },
+  { id: "hsr", lat: 12.9121, lng: 77.6446 },
+  { id: "saltLake", lat: 22.5868, lng: 88.4178 },
+] as const;
+
+function MapLoading() {
+  const t = useMessages(authMessages).location;
+  return (
+    <div className="grid h-64 place-items-center rounded-xl border border-dashed border-line bg-canvas text-sm text-ink-muted">
+      {t.loadingMap}
+    </div>
+  );
+}
 
 type Props = {
   defaultValue?: string;
@@ -68,6 +77,8 @@ type Props = {
 };
 
 export function CaretakerLocationPicker({ defaultValue, error, name = "localityId", id: propId }: Props) {
+  const t = useMessages(authMessages).location;
+  const locale = useLocale();
   const autoId = useId();
   const id = propId ?? autoId;
 
@@ -158,15 +169,15 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
           setQuery(data.formattedAddress || `${data.locality}, ${data.city}`);
 
           if (source === "gps") {
-            setGeoNotice(`Exact GPS location found: ${data.formattedAddress}`);
+            setGeoNotice(t.gpsFound(data.formattedAddress));
             setZoom(16);
           } else if (source === "map") {
-            setGeoNotice(`Pin placed at: ${data.formattedAddress}`);
+            setGeoNotice(t.pinPlaced(data.formattedAddress));
           }
         }
       }
     } catch {
-      setGeoNotice("Location pinned. Could not fetch complete street address, using approximate area.");
+      setGeoNotice(t.reverseFailed);
     } finally {
       setResolvingAddress(false);
     }
@@ -182,7 +193,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
   function handleUseMyLocation() {
     setGeoNotice(null);
     if (!("geolocation" in navigator)) {
-      setGeoNotice("Browser GPS is not supported on this device. Search below instead.");
+      setGeoNotice(t.gpsUnsupported);
       return;
     }
 
@@ -198,8 +209,8 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
         setLocating(false);
         setGeoNotice(
           err.code === err.PERMISSION_DENIED
-            ? "GPS permission was denied. Please search your colony/street in the box."
-            : "Could not retrieve GPS location. Please type your area or landmark.",
+            ? t.gpsDenied
+            : t.gpsFailed,
         );
       },
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
@@ -223,7 +234,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
     setZoom(15);
     setQuery(item.formattedAddress || `${item.name}, ${item.city}`);
     setOpen(false);
-    setGeoNotice(`Selected exact address: ${item.name}`);
+    setGeoNotice(t.selected(item.name));
 
     // Update nearest locality ID
     reverseGeocode(item.latitude, item.longitude, "search");
@@ -268,10 +279,10 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <label htmlFor={`${id}-search`} className="text-sm font-semibold text-ink">
-            Exact Service Base Address <span className="text-rose-600">*</span>
+            {t.label} <span className="text-rose-600">*</span>
           </label>
           <p className="text-xs text-ink-muted">
-            Search any street, landmark, or colony — or use GPS / map to pinpoint your exact home/clinic.
+            {t.intro}
           </p>
         </div>
 
@@ -286,7 +297,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
           ) : (
             <LocateFixed aria-hidden className="size-3.5 text-brand-700" />
           )}
-          {locating ? "Acquiring GPS precision…" : "Use my exact location"}
+          {locating ? t.locating : t.useMyLocation}
         </button>
       </div>
 
@@ -304,7 +315,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
             autoComplete="off"
             aria-expanded={open}
             aria-autocomplete="list"
-            placeholder="Search street, society, building, metro, or colony (e.g. DLF Phase 2, Saket Block J…)"
+            placeholder={t.searchPlaceholder}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -329,7 +340,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
           ) : query ? (
             <button
               type="button"
-              aria-label="Clear address"
+              aria-label={t.clear}
               onClick={() => {
                 setQuery("");
                 setSearchResults([]);
@@ -374,10 +385,10 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
 
       {/* Popular Area Quick Jump Chips */}
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs text-ink-muted">
-        <span className="font-medium text-ink">Popular areas:</span>
+        <span className="font-medium text-ink">{t.popularAreas}</span>
         {POPULAR_AREAS.map((area) => (
           <button
-            key={area.label}
+            key={area.id}
             type="button"
             onClick={() => {
               setCoords({ lat: area.lat, lng: area.lng });
@@ -386,7 +397,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
             }}
             className="rounded-full border border-line bg-white px-2.5 py-0.5 text-xs font-medium text-ink hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800 transition"
           >
-            {area.label}
+            {t.areas[area.id]}
           </button>
         ))}
       </div>
@@ -413,16 +424,16 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
         {resolvingAddress && (
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-brand-800 shadow-md backdrop-blur ring-1 ring-line">
             <LoaderCircle aria-hidden className="size-3 animate-spin text-brand-600" />
-            Resolving exact address…
+            {t.resolving}
           </div>
         )}
 
         <div className="flex items-center justify-between border-t border-line bg-white px-3 py-1.5 text-xs text-ink-muted">
           <span className="inline-flex items-center gap-1 font-medium text-brand-700">
             <Navigation aria-hidden="true" className="size-3" />
-            Click anywhere on the map to pinpoint your exact building/street
+            {t.mapHint}
           </span>
-          <span className="font-medium">10 km service radius</span>
+          <span className="font-medium">{t.radius}</span>
         </div>
       </div>
 
@@ -439,8 +450,8 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
                 {exactLocation.formattedAddress}
               </p>
               <p className="text-emerald-800/80 mt-1">
-                📍 Coordinates: <span className="font-mono">{coords.lat.toFixed(5)}° N, {coords.lng.toFixed(5)}° E</span>
-                {exactLocation.postcode ? ` · PIN: ${exactLocation.postcode}` : ""}
+                📍 {t.coordinates} <span className="font-mono">{coords.lat.toFixed(5)}° N, {coords.lng.toFixed(5)}° E</span>
+                {exactLocation.postcode ? t.pin(exactLocation.postcode) : ""}
               </p>
             </div>
           </div>
@@ -448,12 +459,12 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
           {/* Optional Flat / House / Landmark field to ensure 100% address accuracy */}
           <div className="pt-2 border-t border-emerald-200/80 flex flex-col sm:flex-row sm:items-center gap-2">
             <label htmlFor={`${id}-flat`} className="font-semibold text-emerald-950 whitespace-nowrap">
-              Flat / House No. / Landmark (optional):
+              {t.flatLabel}
             </label>
             <input
               id={`${id}-flat`}
               type="text"
-              placeholder="e.g. Flat 304, Tower B, Green Valley"
+              placeholder={t.flatPlaceholder}
               value={flatOrHouse}
               onChange={(e) => setFlatOrHouse(e.target.value)}
               className="flex-1 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs text-ink shadow-sm placeholder:text-ink-muted focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
@@ -471,7 +482,7 @@ export function CaretakerLocationPicker({ defaultValue, error, name = "localityI
 
       {error && (
         <p role="alert" className="text-xs font-semibold text-rose-700">
-          {error}
+          {translateError(error, locale)}
         </p>
       )}
     </div>

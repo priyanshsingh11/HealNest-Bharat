@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
 import { BrandMark } from "@/components/brand-logo";
 import { LoginForm } from "@/components/login-form";
+import { StaffSignInSection } from "@/components/staff-sign-in-section";
 import { bookableCategories, isComingSoon } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { demoToolsEnabled } from "@/lib/demo";
+import { authMessages } from "@/lib/i18n/messages/auth";
+import { getMessages } from "@/lib/i18n/server";
 import { flattenParams } from "@/lib/location";
+import { staffLoginConfigured } from "@/lib/staff";
 import type { CategoryId } from "@/types";
 
-export const metadata: Metadata = { title: "Log in" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getMessages(authMessages);
+  return { title: t.meta.title };
+}
 
 /** Order of profession tiles on the caretaker tab. */
 const PROFESSION_ORDER: CategoryId[] = ["nurse", "babysitter", "caregiver", "physiotherapist", "phlebotomist"];
@@ -40,6 +47,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           next={safeNext(params.next)}
           demoEnabled={demoToolsEnabled()}
         />
+        <StaffSignInSection configured={staffLoginConfigured()} />
       </div>
     </div>
   );

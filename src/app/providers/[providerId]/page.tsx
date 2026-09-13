@@ -7,6 +7,8 @@ import { ProviderProfileView } from "@/components/provider-profile";
 import { isCategoryActive } from "@/lib/categories";
 import { getRepository } from "@/lib/db";
 import { roundedDistanceKm } from "@/lib/geo";
+import { providerMessages } from "@/lib/i18n/messages/provider";
+import { getMessages } from "@/lib/i18n/server";
 import { flattenParams, locationFromParams, toQuery } from "@/lib/location";
 
 type PageProps = {
@@ -16,13 +18,16 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const provider = await getRepository().getProvider((await params).providerId);
-  return { title: provider ? provider.name : "Provider not found" };
+  if (provider) return { title: provider.name };
+  const t = await getMessages(providerMessages);
+  return { title: t.meta.notFound };
 }
 
 export default async function ProviderPage({ params, searchParams }: PageProps) {
   const { providerId } = await params;
   const location = locationFromParams(flattenParams(await searchParams));
   const repo = getRepository();
+  const t = await getMessages(providerMessages);
 
   const provider = await repo.getProvider(providerId);
   if (!provider || !provider.active || !(await isCategoryActive(repo, provider.category))) notFound();
@@ -45,7 +50,7 @@ export default async function ProviderPage({ params, searchParams }: PageProps) 
           href={`/discover${toQuery({ ...locationQuery, category: provider.category })}`}
           className="mb-4 inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-brand-700 hover:underline"
         >
-          <ArrowLeft aria-hidden className="size-4" /> Back to results
+          <ArrowLeft aria-hidden className="size-4" /> {t.backToResults}
         </Link>
         <ProviderProfileView
           provider={provider}

@@ -3,8 +3,11 @@
 import { TriangleAlert } from "lucide-react";
 import Image from "next/image";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { useMessages } from "@/lib/i18n/client";
+import { systemMessages } from "@/lib/i18n/messages/system";
 
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const t = useMessages(systemMessages).error;
   return (
     <div className="hero-surface px-4 py-16 sm:py-24">
       <div
@@ -20,14 +23,12 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
               <TriangleAlert aria-hidden className="size-4 text-amber-600" />
             </span>
           </div>
-          <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Something went wrong</h1>
-          <p className="mt-2 text-ink-muted">
-            We couldn&apos;t load this page. Please try again. If you need urgent medical help, call 112.
-          </p>
+          <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{t.heading}</h1>
+          <p className="mt-2 text-ink-muted">{t.body}</p>
           <div className="mt-7 flex flex-wrap justify-center gap-2">
-            <Button onClick={reset}>Try again</Button>
+            <Button onClick={reset}>{t.retry}</Button>
             <ButtonLink href="/" variant="secondary">
-              Go home
+              {t.home}
             </ButtonLink>
           </div>
         </div>

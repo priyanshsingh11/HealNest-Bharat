@@ -4,8 +4,11 @@ import { MessageCircle, Phone, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { nextHappyStatus, STATUS_LABELS } from "@/lib/booking-status";
+import { nextHappyStatus } from "@/lib/booking-status";
 import { apiRequest } from "@/lib/client-api";
+import { useLocale } from "@/lib/i18n/client";
+import { bookingMessages } from "@/lib/i18n/messages/booking";
+import { domainMessages } from "@/lib/i18n/messages/domain";
 import type { BookingStatus, Role } from "@/types";
 
 type Props = {
@@ -19,6 +22,9 @@ type Props = {
 
 /** Customer actions on a booking: cancel, mocked contact, and a demo control to simulate provider updates. */
 export function BookingActions({ bookingId, status, role, providerName, cancellable, demoTools }: Props) {
+  const locale = useLocale();
+  const t = bookingMessages[locale].actions;
+  const statusLabels = domainMessages[locale].statuses;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -35,7 +41,7 @@ export function BookingActions({ bookingId, status, role, providerName, cancella
       setMessage(success);
       startTransition(() => router.refresh());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(e instanceof Error ? e.message : t.genericError);
     }
   }
 
@@ -43,21 +49,21 @@ export function BookingActions({ bookingId, status, role, providerName, cancella
     <div className="space-y-3">
       <div className="grid gap-2 sm:flex sm:flex-wrap">
         <Button variant="secondary" onClick={() => setContactOpen((o) => !o)} aria-expanded={contactOpen}>
-          <MessageCircle aria-hidden className="size-4" /> Contact provider
+          <MessageCircle aria-hidden className="size-4" /> {t.contactProvider}
         </Button>
         {role === "user" && cancellable && !confirmCancel && (
           <Button variant="danger" onClick={() => setConfirmCancel(true)} data-testid="cancel-booking">
-            Cancel booking
+            {t.cancelBooking}
           </Button>
         )}
         {demoTools && next && (
           <Button
             variant="ghost"
             disabled={pending}
-            onClick={() => run(() => apiRequest(`/api/bookings/${bookingId}/simulate`, "POST"), `Simulated: ${STATUS_LABELS[next]}`)}
+            onClick={() => run(() => apiRequest(`/api/bookings/${bookingId}/simulate`, "POST"), t.simulated(statusLabels[next]))}
             data-testid="simulate-update"
           >
-            <Wand2 aria-hidden className="size-4" /> Demo: simulate “{STATUS_LABELS[next]}”
+            <Wand2 aria-hidden className="size-4" /> {t.simulate(statusLabels[next])}
           </Button>
         )}
       </div>
@@ -65,24 +71,24 @@ export function BookingActions({ bookingId, status, role, providerName, cancella
       {confirmCancel && (
         <div role="alertdialog" aria-labelledby="cancel-title" className="rounded-xl border border-rose-200 bg-rose-50 p-4">
           <p id="cancel-title" className="font-semibold text-rose-950">
-            Cancel this booking?
+            {t.cancelTitle}
           </p>
-          <p className="mt-1 text-sm text-rose-900">The time window will be released. Refunds follow the cancellation terms shown.</p>
+          <p className="mt-1 text-sm text-rose-900">{t.cancelBody}</p>
           <div className="mt-3 flex gap-2">
             <Button
               variant="danger"
               disabled={pending}
               onClick={() =>
-                run(() => apiRequest(`/api/bookings/${bookingId}`, "PATCH", { status: "CANCELLED" }), "Booking cancelled.").then(() =>
+                run(() => apiRequest(`/api/bookings/${bookingId}`, "PATCH", { status: "CANCELLED" }), t.cancelled).then(() =>
                   setConfirmCancel(false),
                 )
               }
               data-testid="confirm-cancel"
             >
-              Yes, cancel
+              {t.yesCancel}
             </Button>
             <Button variant="secondary" onClick={() => setConfirmCancel(false)}>
-              Keep booking
+              {t.keepBooking}
             </Button>
           </div>
         </div>
@@ -90,17 +96,14 @@ export function BookingActions({ bookingId, status, role, providerName, cancella
 
       {contactOpen && (
         <div className="rounded-xl border border-line bg-canvas p-4 text-sm">
-          <p className="font-semibold">Contact {providerName}</p>
-          <p className="mt-1 text-ink-muted">
-            In the live app, calls and chats go through a masked number so neither side sees personal phone numbers. This demo does not
-            place real calls or send messages.
-          </p>
+          <p className="font-semibold">{t.contactTitle(providerName)}</p>
+          <p className="mt-1 text-ink-muted">{t.contactBody}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setMessage("Demo: a masked call would be connected now.")}>
-              <Phone aria-hidden className="size-4" /> Call (masked)
+            <Button variant="secondary" size="sm" onClick={() => setMessage(t.callDemo)}>
+              <Phone aria-hidden className="size-4" /> {t.call}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setMessage("Demo: an in-app chat would open now.")}>
-              <MessageCircle aria-hidden className="size-4" /> Message
+            <Button variant="secondary" size="sm" onClick={() => setMessage(t.chatDemo)}>
+              <MessageCircle aria-hidden className="size-4" /> {t.message}
             </Button>
           </div>
         </div>

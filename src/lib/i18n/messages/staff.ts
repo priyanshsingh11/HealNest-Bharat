@@ -1,0 +1,61 @@
+import { defineMessages } from "@/lib/i18n/config";
+
+/** Staff sign-in: the /staff page, the section on the login page and the two-step form. */
+export const staffMessages = defineMessages({
+  en: {
+    meta: { title: "Staff sign-in" },
+    heading: "Staff sign-in",
+    pageIntro: "For HealNest staff only. The passcode emails a one-time code to your approved staff address.",
+    toggle: "HealNest staff sign-in",
+    sectionIntro: "Two steps: the staff passcode, then a one-time code emailed to your approved staff address.",
+    close: "Close",
+    form: {
+      signInFailed: "Could not sign in",
+      codeSent: (email: string) => `We sent a sign-in code to ${email}. It expires in 10 minutes.`,
+      notConfigured: {
+        before: "Staff sign-in is not set up on this deployment. Set",
+        and: "and",
+        after: "in the server environment, then redeploy.",
+      },
+      email: "Staff email",
+      emailHint: "The code goes to this address, so it has to be one of the approved staff addresses.",
+      passcode: "Staff passcode",
+      sendingCode: "Sending code…",
+      sendCode: "Send sign-in code",
+      code: "Code from your email",
+      codePlaceholder: "6-digit code",
+      checking: "Checking…",
+      openDashboard: "Open admin dashboard",
+      resend: "Send another code",
+      differentAddress: "Use a different address",
+    },
+  },
+  hi: {
+    meta: { title: "स्टाफ साइन इन" },
+    heading: "स्टाफ साइन इन",
+    pageIntro: "सिर्फ़ HealNest स्टाफ के लिए। पासकोड डालने पर आपके मंज़ूर स्टाफ ईमेल पर एक वन-टाइम कोड भेजा जाता है।",
+    toggle: "HealNest स्टाफ साइन इन",
+    sectionIntro: "दो चरण: पहले स्टाफ पासकोड, फिर आपके मंज़ूर स्टाफ ईमेल पर भेजा गया वन-टाइम कोड।",
+    close: "बंद करें",
+    form: {
+      signInFailed: "साइन इन नहीं हो सका",
+      codeSent: (email: string) => `हमने ${email} पर साइन-इन कोड भेजा है। यह 10 मिनट में खत्म हो जाएगा।`,
+      notConfigured: {
+        before: "इस डिप्लॉयमेंट पर स्टाफ साइन इन सेट नहीं है। सर्वर एनवायरनमेंट में",
+        and: "और",
+        after: "सेट करें, फिर दोबारा डिप्लॉय करें।",
+      },
+      email: "स्टाफ ईमेल",
+      emailHint: "कोड इसी पते पर जाएगा, इसलिए यह मंज़ूर स्टाफ ईमेल में से एक होना चाहिए।",
+      passcode: "स्टाफ पासकोड",
+      sendingCode: "कोड भेजा जा रहा है…",
+      sendCode: "साइन-इन कोड भेजें",
+      code: "ईमेल में आया कोड",
+      codePlaceholder: "6 अंकों का कोड",
+      checking: "जाँच हो रही है…",
+      openDashboard: "एडमिन डैशबोर्ड खोलें",
+      resend: "दूसरा कोड भेजें",
+      differentAddress: "दूसरा ईमेल इस्तेमाल करें",
+    },
+  },
+});

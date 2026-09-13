@@ -13,6 +13,8 @@ import { ApiRequestError, apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
 import { formatDistance, formatDuration, formatMoney, formatTime, groupByDay } from "@/lib/formatters";
 import { roundedDistanceKm } from "@/lib/geo";
+import { useLocale } from "@/lib/i18n/client";
+import { bookingMessages } from "@/lib/i18n/messages/booking";
 import type { ChosenLocation } from "@/lib/location";
 import { calculateQuote, MAX_MEDICINE_QUANTITY } from "@/lib/pricing";
 import { bookingFormSchema, NOTES_MAX, type BookingFormValues, type BookingRequest } from "@/lib/validations";
@@ -30,6 +32,8 @@ type Props = {
 };
 
 export function BookingForm({ provider, services, slots, rules, config, initialServiceId, initialSlotId, initialLocation }: Props) {
+  const locale = useLocale();
+  const t = bookingMessages[locale].form;
   const router = useRouter();
   const [location, setLocation] = useState<ChosenLocation | null>(initialLocation);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -40,7 +44,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
       providerId: provider.id,
       serviceId: services.some((s) => s.id === initialServiceId) ? initialServiceId : services[0]?.id,
       slotId: slots.some((s) => s.id === initialSlotId) ? initialSlotId : "",
-      addressLabel: "Home",
+      addressLabel: t.defaultAddressLabel,
       addressText: "",
       latitude: initialLocation?.latitude,
       longitude: initialLocation?.longitude,
@@ -74,7 +78,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
 
   const distanceKm = location ? roundedDistanceKm(location, provider.baseLocation) : null;
   const outsideArea = distanceKm !== null && distanceKm > provider.serviceRadiusKm;
-  const days = groupByDay(slots);
+  const days = groupByDay(slots, locale);
   const busy = isSubmitting || isSubmitSuccessful;
 
   const onSubmit = handleSubmit(async (values) => {
@@ -89,7 +93,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         }
         setServerError(error.message);
       } else {
-        setServerError("Something went wrong. Please try again.");
+        setServerError(t.genericError);
       }
       throw error; // keeps isSubmitSuccessful false
     }
@@ -111,7 +115,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         )}
 
         <fieldset className="rounded-2xl border border-line bg-white p-5">
-          <legend className="float-left mb-3 w-full text-base font-bold text-ink">1. Choose a service</legend>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">{t.chooseService}</legend>
           <div className="clear-both space-y-2">
             {services.map((s) => (
               <label
@@ -128,7 +132,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
                     <span className="shrink-0 whitespace-nowrap font-bold text-ink">{formatMoney(s.basePriceMinor)}</span>
                   </span>
                   <span className="mt-0.5 block text-sm text-ink-muted">
-                    {s.description} · {formatDuration(s.durationMinutes)}
+                    {s.description} · {formatDuration(s.durationMinutes, locale)}
                   </span>
                 </span>
               </label>
@@ -138,10 +142,10 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="rounded-2xl border border-line bg-white p-5" aria-describedby="slot-hint">
-          <legend className="float-left mb-3 w-full text-base font-bold text-ink">2. Pick a date & arrival window</legend>
-          <Hint id="slot-hint">Times are in IST. The provider arrives within the chosen 2-hour window.</Hint>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">{t.pickSlot}</legend>
+          <Hint id="slot-hint">{t.slotHint}</Hint>
           {days.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-muted">No open time windows this week. Please check back later.</p>
+            <p className="mt-3 text-sm text-ink-muted">{t.noSlots}</p>
           ) : (
             <div className="mt-3 space-y-4">
               {days.map((day) => (
@@ -157,9 +161,9 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
                         )}
                       >
                         <input type="radio" value={slot.id} {...register("slotId")} className="sr-only" data-testid="slot-option" />
-                        {formatTime(slot.startAt)} – {formatTime(slot.endAt)}
+                        {formatTime(slot.startAt, locale)} – {formatTime(slot.endAt, locale)}
                         {slot.capacity > 1 && (
-                          <span className="ml-1 text-xs font-medium opacity-80">· {slot.capacity - slot.bookedCount} left</span>
+                          <span className="ml-1 text-xs font-medium opacity-80">{t.slotsLeft(slot.capacity - slot.bookedCount)}</span>
                         )}
                       </label>
                     ))}
@@ -172,9 +176,9 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="space-y-4 rounded-2xl border border-line bg-white p-5">
-          <legend className="float-left mb-3 w-full text-base font-bold text-ink">3. Visit address</legend>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">{t.visitAddress}</legend>
           <LocationPicker
-            label="Area"
+            label={t.area}
             value={location}
             errorMessage={errors.latitude?.message}
             onChange={(next) => {
@@ -186,22 +190,22 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
           {distanceKm !== null && (
             <p className={cn("text-sm", outsideArea ? "font-semibold text-rose-700" : "text-ink-muted")} role={outsideArea ? "alert" : undefined}>
               {outsideArea
-                ? `This area is ${formatDistance(distanceKm)} away — outside ${provider.name}'s ${provider.serviceRadiusKm} km service area.`
-                : `${formatDistance(distanceKm)} from the provider · within their ${provider.serviceRadiusKm} km service area.`}
+                ? t.outsideArea(formatDistance(distanceKm), provider.name, provider.serviceRadiusKm)
+                : t.withinArea(formatDistance(distanceKm), provider.serviceRadiusKm)}
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
             <div>
-              <Label htmlFor="addressLabel">Label</Label>
+              <Label htmlFor="addressLabel">{t.label}</Label>
               <Input id="addressLabel" {...register("addressLabel")} aria-invalid={Boolean(errors.addressLabel)} aria-describedby="addressLabel-error" />
               <FieldError id="addressLabel-error" message={errors.addressLabel?.message} />
             </div>
             <div>
-              <Label htmlFor="addressText">Full address</Label>
+              <Label htmlFor="addressText">{t.fullAddress}</Label>
               <Input
                 id="addressText"
                 autoComplete="street-address"
-                placeholder="House/flat no., building, street, landmark"
+                placeholder={t.addressPlaceholder}
                 {...register("addressText")}
                 aria-invalid={Boolean(errors.addressText)}
                 aria-describedby="addressText-error"
@@ -212,19 +216,19 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="space-y-4 rounded-2xl border border-line bg-white p-5">
-          <legend className="float-left mb-3 w-full text-base font-bold text-ink">4. What help do you need?</legend>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">{t.helpNeeded}</legend>
           <div className="clear-both">
-            <Label htmlFor="notes">Short description (optional)</Label>
+            <Label htmlFor="notes">{t.notes}</Label>
             <Textarea
               id="notes"
               maxLength={NOTES_MAX}
-              placeholder="e.g. Prescribed injection, prescription available at home. Elderly patient, ground floor."
+              placeholder={t.notesPlaceholder}
               {...register("notes")}
               aria-invalid={Boolean(errors.notes)}
               aria-describedby="notes-hint notes-error"
             />
             <Hint id="notes-hint">
-              Logistics only — please don&apos;t describe symptoms for diagnosis. {String(notes ?? "").length}/{NOTES_MAX}
+              {t.notesHint} {String(notes ?? "").length}/{NOTES_MAX}
             </Hint>
             <FieldError id="notes-error" message={errors.notes?.message} />
           </div>
@@ -235,15 +239,15 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
                 <input id="includeMedicine" type="checkbox" className="mt-1 size-4 accent-brand-700" {...register("includeMedicine")} />
                 <div className="flex-1">
                   <label htmlFor="includeMedicine" className="font-semibold text-ink">
-                    Provider brings medicines & consumables (estimated {formatMoney(service.medicineEstimateMinor)} each)
+                    {t.medicine(formatMoney(service.medicineEstimateMinor))}
                   </label>
                   <p className="mt-0.5 text-xs text-amber-900">
-                    Estimate only — the provider confirms the actual cost before the visit.
+                    {t.medicineHint}
                     {config.prescriptionRequiredForMedicine && ` ${config.prescriptionNote}`}
                   </p>
                   {includeMedicine && (
                     <div className="mt-3 max-w-40">
-                      <Label htmlFor="medicineQuantity">Quantity</Label>
+                      <Label htmlFor="medicineQuantity">{t.quantity}</Label>
                       <Select id="medicineQuantity" {...register("medicineQuantity", { valueAsNumber: true })}>
                         {Array.from({ length: MAX_MEDICINE_QUANTITY }, (_, i) => i + 1).map((n) => (
                           <option key={n} value={n}>
@@ -260,7 +264,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
         </fieldset>
 
         <fieldset className="space-y-3 rounded-2xl border border-line bg-white p-5">
-          <legend className="float-left mb-3 w-full text-base font-bold text-ink">5. Consent & confirmation</legend>
+          <legend className="float-left mb-3 w-full text-base font-bold text-ink">{t.consent}</legend>
           <div className="clear-both flex items-start gap-3">
             <input
               id="consentToShareLocation"
@@ -272,7 +276,7 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
             />
             <div>
               <label htmlFor="consentToShareLocation" className="text-sm font-semibold text-ink">
-                I agree to share this visit address and my phone number with {provider.name} for this booking only.
+                {t.consentShare(provider.name)}
               </label>
               <FieldError id="consent-error" message={errors.consentToShareLocation?.message} />
             </div>
@@ -288,15 +292,14 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
             />
             <div>
               <label htmlFor="acceptPriceBreakdown" className="text-sm font-semibold text-ink">
-                I have reviewed the itemised price{quote.hasEstimates ? ", including estimated items," : ""} and the cancellation terms.
+                {t.acceptPrice(quote.hasEstimates)}
               </label>
               <FieldError id="price-error" message={errors.acceptPriceBreakdown?.message} />
             </div>
           </div>
           <p className="flex items-start gap-2 text-xs text-ink-muted">
             <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            No payment is taken now. You pay only after the provider accepts (payments are simulated in this demo). Cancellation:{" "}
-            {provider.cancellationPolicy}
+            {t.noPayment} {provider.cancellationPolicy}
           </p>
         </fieldset>
       </div>
@@ -305,14 +308,14 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
       <aside aria-labelledby="quote-heading" className="lg:sticky lg:top-24 lg:self-start">
         <div className="rounded-2xl border border-line bg-white p-5 shadow-sm">
           <h2 id="quote-heading" className="text-base font-bold">
-            Your quote
+            {t.yourQuote}
           </h2>
-          <p className="mb-2 text-xs text-ink-muted">Preview — the final price is recalculated securely when you confirm.</p>
+          <p className="mb-2 text-xs text-ink-muted">{t.quotePreview}</p>
           <QuoteBreakdown quote={quote} />
           <div className="mt-5 hidden lg:block">
             <Button type="submit" size="lg" className="w-full" disabled={busy || outsideArea} data-testid="confirm-booking">
               {busy && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-              {busy ? "Sending request…" : `Confirm request · ${formatMoney(quote.totalMinor)}`}
+              {busy ? t.sendingRequest : t.confirmWithTotal(formatMoney(quote.totalMinor))}
             </Button>
           </div>
         </div>
@@ -322,15 +325,15 @@ export function BookingForm({ provider, services, slots, rules, config, initialS
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
           <div>
-            <p className="text-xs text-ink-muted">{quote.hasEstimates ? "Estimated total" : "Total"}</p>
+            <p className="text-xs text-ink-muted">{quote.hasEstimates ? t.estimatedTotal : t.total}</p>
             <p className="text-lg font-extrabold">{formatMoney(quote.totalMinor)}</p>
             <a href="#quote-heading" className="text-xs font-semibold text-brand-700 underline">
-              See breakdown
+              {t.seeBreakdown}
             </a>
           </div>
           <Button type="submit" size="lg" disabled={busy || outsideArea} data-testid="confirm-booking-mobile">
             {busy && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-            {busy ? "Sending…" : "Confirm request"}
+            {busy ? t.sending : t.confirm}
           </Button>
         </div>
       </div>

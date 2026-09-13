@@ -3,6 +3,9 @@
 import { CheckCircle2, LoaderCircle, LocateFixed, MapPin, X } from "lucide-react";
 import { useId, useState, type KeyboardEvent, type Ref } from "react";
 import { cn } from "@/lib/cn";
+import { useLocale } from "@/lib/i18n/client";
+import { translateError } from "@/lib/i18n/errors";
+import { locationMessages } from "@/lib/i18n/messages/location";
 import { localityLabel, searchLocalities } from "@/lib/localities";
 import type { ChosenLocation } from "@/lib/location";
 
@@ -32,7 +35,9 @@ type ResolvedAddress = {
  * Address search (offline locality list for the MVP) plus optional browser geolocation.
  * Accessible combobox: arrow keys move through suggestions, Enter selects, Escape closes.
  */
-export function LocationPicker({ value, onChange, size = "md", label = "Where do you need care?", errorMessage, inputRef }: Props) {
+export function LocationPicker({ value, onChange, size = "md", label, errorMessage, inputRef }: Props) {
+  const locale = useLocale();
+  const t = locationMessages[locale].picker;
   const id = useId();
   const listId = `${id}-list`;
   const hintId = `${id}-hint`;
@@ -103,14 +108,14 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
       // Address lookup failed — the coordinates alone are still usable for search.
     }
     setResolved(null);
-    choose({ label: "Current location", latitude: coarse(latitude), longitude: coarse(longitude) });
+    choose({ label: t.currentLocation, latitude: coarse(latitude), longitude: coarse(longitude) });
   }
 
   function useMyLocation() {
     setGeoError(null);
     setResolved(null);
     if (!("geolocation" in navigator)) {
-      setGeoError("Your browser doesn't support location access. Please type your area instead.");
+      setGeoError(t.noGeolocation);
       return;
     }
     setLocating(true);
@@ -125,21 +130,21 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
         setLocating(false);
         setGeoError(
           error.code === error.PERMISSION_DENIED
-            ? "Location permission was denied. Type your area instead."
-            : "We couldn't get your location. Type your area instead.",
+            ? t.permissionDenied
+            : t.locateFailed,
         );
       },
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
     );
   }
 
-  const shownError = errorMessage ?? geoError ?? undefined;
+  const shownError = (errorMessage && translateError(errorMessage, locale)) ?? geoError ?? undefined;
   const large = size === "lg";
 
   return (
     <div>
       <label htmlFor={id} className={cn("mb-2 block font-semibold text-ink", large ? "text-base" : "text-sm")}>
-        {label}
+        {label ?? t.label}
       </label>
       <div className={cn("flex flex-col gap-2", large ? "sm:flex-row" : "")}>
         <div className="relative flex-1">
@@ -156,7 +161,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
             aria-activedescendant={open && suggestions[active] ? `${listId}-${suggestions[active].id}` : undefined}
             aria-describedby={cn(hintId, shownError && errorId) || undefined}
             aria-invalid={Boolean(shownError)}
-            placeholder="Your area or city, e.g. Saket"
+            placeholder={t.placeholder}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -177,7 +182,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
           {query && (
             <button
               type="button"
-              aria-label="Clear location"
+              aria-label={t.clear}
               onClick={() => {
                 setQuery("");
                 setResolved(null);
@@ -192,12 +197,12 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
             <ul
               id={listId}
               role="listbox"
-              aria-label="Matching areas"
+              aria-label={t.matchingAreas}
               className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-line bg-white py-1 shadow-lg"
             >
               {suggestions.length === 0 && (
                 <li className="px-4 py-3 text-sm text-ink-muted">
-                  No matching area. Try your city name instead, e.g. Lucknow or Coimbatore.
+                  {t.noMatch}
                 </li>
               )}
               {suggestions.map((locality, index) => (
@@ -229,11 +234,11 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
           )}
         >
           {locating ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <LocateFixed aria-hidden className="size-4" />}
-          {locating ? "Finding your address…" : "Use my location"}
+          {locating ? t.finding : t.useMyLocation}
         </button>
       </div>
       <p id={hintId} className="mt-2 text-xs text-ink-muted">
-        Your location is only used to find providers nearby. It is shared with a provider only after you confirm a booking.
+        {t.privacyHint}
       </p>
       {shownError && (
         <p id={errorId} role="alert" className="mt-1 text-sm font-medium text-rose-700">
@@ -250,7 +255,7 @@ export function LocationPicker({ value, onChange, size = "md", label = "Where do
               <span className="font-mono">
                 {resolved.latitude.toFixed(5)}, {resolved.longitude.toFixed(5)}
               </span>
-              {resolved.postcode ? ` · PIN ${resolved.postcode}` : ""}
+              {resolved.postcode ? t.pin(resolved.postcode) : ""}
               {resolved.accuracyM ? ` · ±${resolved.accuracyM} m` : ""}
             </p>
           </div>

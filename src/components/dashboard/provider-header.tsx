@@ -4,28 +4,32 @@ import { ProviderDashboardNav } from "@/components/dashboard/provider-nav";
 import { ProviderSwitcher } from "@/components/dashboard/provider-switcher";
 import { ProviderAvatar } from "@/components/provider-avatar";
 import { Card } from "@/components/ui/card";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
+import { getMessages } from "@/lib/i18n/server";
 import type { ProviderProfile } from "@/types";
 
 /** Shown when nobody is signed in as a caretaker. Only profiles registered on this device can be opened. */
-export function ProviderGate({ missing = false }: { missing?: boolean }) {
+export async function ProviderGate({ missing = false }: { missing?: boolean }) {
+  const { gate: t } = await getMessages(providerDashboardMessages);
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <h1 className="text-2xl font-extrabold">Provider dashboard</h1>
+      <h1 className="text-2xl font-extrabold">{t.title}</h1>
       <p className="mt-2 text-ink-muted">
-        {missing ? "That caretaker profile wasn't found. " : ""}Open one of the caretaker profiles saved on this device, or{" "}
+        {missing ? t.notFound : ""}
+        {t.openSaved}{" "}
         <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
-          log in as a caretaker
+          {t.logIn}
         </Link>
         .
       </p>
       <Card className="mt-6 p-6">
         <ProviderSwitcher />
         <p className="mt-3 text-sm text-ink-muted">
-          Caretaker accounts can only be opened from the device they were created on.{" "}
+          {t.deviceOnly}{" "}
           <Link href="/login?as=caretaker" className="font-semibold text-brand-700 underline underline-offset-2">
-            Create one
+            {t.createOne}
           </Link>{" "}
-          to get started.
+          {t.toGetStarted}
         </p>
       </Card>
     </div>

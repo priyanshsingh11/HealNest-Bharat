@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/field";
-import { nextHappyStatus, STATUS_LABELS } from "@/lib/booking-status";
+import { nextHappyStatus } from "@/lib/booking-status";
 import { apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
 import { formatDuration, formatTime, groupByDay } from "@/lib/formatters";
+import { useLocale, useMessages } from "@/lib/i18n/client";
+import { domainMessages } from "@/lib/i18n/messages/domain";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
 import type { AvailabilitySlot, BookingStatus } from "@/types";
 
 function useMutation() {
   const router = useRouter();
+  const { controls: t } = useMessages(providerDashboardMessages);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   async function mutate(fn: () => Promise<unknown>) {
@@ -22,7 +26,7 @@ function useMutation() {
       startTransition(() => router.refresh());
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(e instanceof Error ? e.message : t.somethingWrong);
       return false;
     }
   }
@@ -45,19 +49,14 @@ const pill = (active: boolean) =>
     active ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white text-ink hover:border-brand-300",
   );
 
-const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
-  ACCEPTED: "Mark on the way",
-  ON_THE_WAY: "Mark arrived",
-  ARRIVED: "Start visit",
-  IN_PROGRESS: "Complete visit",
-};
-
 /** Accept / decline incoming requests and advance active visits. In the patient queue the last step reads "Mark attended". */
 export function RequestActions({ bookingId, status, queue = false }: { bookingId: string; status: BookingStatus; queue?: boolean }) {
   const { pending, error, mutate } = useMutation();
+  const locale = useLocale();
+  const { controls: t } = useMessages(providerDashboardMessages);
   const setStatus = (next: BookingStatus) => mutate(() => apiRequest(`/api/bookings/${bookingId}`, "PATCH", { status: next }));
   const next = nextHappyStatus(status);
-  const label = queue && status === "IN_PROGRESS" ? "Mark attended" : NEXT_ACTION_LABEL[status];
+  const label = queue && status === "IN_PROGRESS" ? t.markAttended : t.nextAction[status];
 
   return (
     <div>
@@ -65,10 +64,10 @@ export function RequestActions({ bookingId, status, queue = false }: { bookingId
         {status === "REQUESTED" ? (
           <>
             <Button variant="success" size="sm" disabled={pending} onClick={() => setStatus("ACCEPTED")}>
-              Accept
+              {t.accept}
             </Button>
             <Button variant="danger" size="sm" disabled={pending} onClick={() => setStatus("DECLINED")}>
-              Decline
+              {t.decline}
             </Button>
           </>
         ) : (
@@ -81,7 +80,7 @@ export function RequestActions({ bookingId, status, queue = false }: { bookingId
         )}
         {status === "ACCEPTED" && (
           <Button variant="danger" size="sm" disabled={pending} onClick={() => setStatus("CANCELLED")}>
-            Cancel visit
+            {t.cancelVisit}
           </Button>
         )}
       </div>
@@ -91,7 +90,7 @@ export function RequestActions({ bookingId, status, queue = false }: { bookingId
         </p>
       )}
       <span className="sr-only" aria-live="polite">
-        {pending ? `Updating to ${next ? STATUS_LABELS[next] : ""}` : ""}
+        {pending ? t.updatingTo(next ? domainMessages[locale].statuses[next] : "") : ""}
       </span>
     </div>
   );
@@ -107,11 +106,13 @@ const SLOT_TONE = {
 /** Open or block individual slots. Full slots are managed through their bookings. */
 export function SlotList({ slots }: { slots: AvailabilitySlot[] }) {
   const { pending, error, mutate } = useMutation();
-  const days = groupByDay(slots);
+  const locale = useLocale();
+  const { controls: t } = useMessages(providerDashboardMessages);
+  const days = groupByDay(slots, locale);
 
   return (
     <div className="space-y-5">
-      {days.length === 0 && <p className="text-sm text-ink-muted">No slots yet. Add availability above.</p>}
+      {days.length === 0 && <p className="text-sm text-ink-muted">{t.noSlots}</p>}
       {days.map((group) => (
         <div key={group.day}>
           <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">{group.label}</p>
@@ -126,14 +127,14 @@ export function SlotList({ slots }: { slots: AvailabilitySlot[] }) {
                     disabled={pending || full}
                     aria-pressed={slot.status === "open"}
                     onClick={() => mutate(() => apiRequest(`/api/slots/${slot.id}`, "PATCH", { status: slot.status === "open" ? "blocked" : "open" }))}
-                    title={full ? "Full — manage it through the bookings" : slot.status === "open" ? "Click to block" : "Click to open"}
+                    title={full ? t.fullTitle : slot.status === "open" ? t.clickToBlock : t.clickToOpen}
                     className={cn("flex w-full flex-col items-start rounded-lg border px-3 py-1.5 text-left text-xs font-semibold", SLOT_TONE[tone])}
                   >
                     <span className={cn("whitespace-nowrap", slot.status === "blocked" && "line-through")}>
-                      {formatTime(slot.startAt)} – {formatTime(slot.endAt)}
+                      {formatTime(slot.startAt, locale)} – {formatTime(slot.endAt, locale)}
                     </span>
                     <span className="font-medium opacity-80">
-                      {full ? "full" : slot.status}
+                      {t.slotStatus[slot.status]}
                       {slot.capacity > 1 && ` · ${slot.bookedCount}/${slot.capacity}`}
                     </span>
                   </button>
@@ -165,6 +166,8 @@ export type DayOption = { value: string; label: string; weekend: boolean };
 /** Opens the same window on several days. */
 export function SlotBuilder({ providerId, dayOptions }: { providerId: string; dayOptions: DayOption[] }) {
   const { pending, error, mutate } = useMutation();
+  const locale = useLocale();
+  const { controls: t } = useMessages(providerDashboardMessages);
   const [dates, setDates] = useState<string[]>([]);
   const [startTime, setStartTime] = useState("10:00");
   const [duration, setDuration] = useState("120");
@@ -178,7 +181,7 @@ export function SlotBuilder({ providerId, dayOptions }: { providerId: string; da
     setMessage(null);
     setLocalError(null);
     if (!dates.length) {
-      setLocalError("Choose at least one day.");
+      setLocalError(t.chooseDay);
       return;
     }
     const count = dates.length;
@@ -190,7 +193,7 @@ export function SlotBuilder({ providerId, dayOptions }: { providerId: string; da
       }),
     );
     if (ok) {
-      setMessage(`Added ${count} ${count === 1 ? "slot" : "slots"}.`);
+      setMessage(t.added(count));
       setDates([]);
     }
   }
@@ -198,7 +201,7 @@ export function SlotBuilder({ providerId, dayOptions }: { providerId: string; da
   return (
     <form onSubmit={submit} className="space-y-4">
       <fieldset>
-        <legend className="text-sm font-semibold text-ink">Days</legend>
+        <legend className="text-sm font-semibold text-ink">{t.days}</legend>
         <div className="mt-2 flex flex-wrap gap-2">
           {dayOptions.map((day) => (
             <label key={day.value} className={pill(dates.includes(day.value))}>
@@ -209,34 +212,34 @@ export function SlotBuilder({ providerId, dayOptions }: { providerId: string; da
         </div>
         <div className="mt-2 flex flex-wrap gap-4 text-sm">
           <button type="button" className="font-semibold text-brand-700 underline underline-offset-2" onClick={() => setDates(dayOptions.filter((d) => !d.weekend).map((d) => d.value))}>
-            Weekdays
+            {t.weekdays}
           </button>
           <button type="button" className="font-semibold text-brand-700 underline underline-offset-2" onClick={() => setDates(dayOptions.map((d) => d.value))}>
-            Every day
+            {t.everyDay}
           </button>
           <button type="button" className="font-semibold text-ink-muted underline underline-offset-2" onClick={() => setDates([])}>
-            Clear
+            {t.clear}
           </button>
         </div>
       </fieldset>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label htmlFor="slot-start">Start (IST)</Label>
+          <Label htmlFor="slot-start">{t.startIst}</Label>
           <Select id="slot-start" value={startTime} onChange={(e) => setStartTime(e.target.value)}>
-            {START_TIMES.map((t) => (
-              <option key={t} value={t}>
-                {clockLabel(t)}
+            {START_TIMES.map((time) => (
+              <option key={time} value={time}>
+                {clockLabel(time)}
               </option>
             ))}
           </Select>
         </div>
         <div>
-          <Label htmlFor="slot-duration">Length</Label>
+          <Label htmlFor="slot-duration">{t.length}</Label>
           <Select id="slot-duration" value={duration} onChange={(e) => setDuration(e.target.value)}>
             {DURATIONS.map((m) => (
               <option key={m} value={m}>
-                {formatDuration(m)}
+                {formatDuration(m, locale)}
               </option>
             ))}
           </Select>
@@ -245,7 +248,7 @@ export function SlotBuilder({ providerId, dayOptions }: { providerId: string; da
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" variant="secondary" disabled={pending}>
-          <Plus aria-hidden className="size-4" /> Add {dates.length > 1 ? `${dates.length} slots` : "slot"}
+          <Plus aria-hidden className="size-4" /> {t.addSlots(dates.length)}
         </Button>
         <p aria-live="polite" className="text-sm text-emerald-800">
           {message}
@@ -258,6 +261,7 @@ export function SlotBuilder({ providerId, dayOptions }: { providerId: string; da
 
 export function RadiusEditor({ providerId, radiusKm }: { providerId: string; radiusKm: number }) {
   const { pending, error, mutate } = useMutation();
+  const { controls: t } = useMessages(providerDashboardMessages);
   const [value, setValue] = useState(String(radiusKm));
   const [saved, setSaved] = useState(false);
 
@@ -272,14 +276,14 @@ export function RadiusEditor({ providerId, radiusKm }: { providerId: string; rad
       }}
     >
       <div>
-        <Label htmlFor="radius">Service radius (km)</Label>
+        <Label htmlFor="radius">{t.radius}</Label>
         <Input id="radius" type="number" min={1} max={50} value={value} onChange={(e) => setValue(e.target.value)} className="w-28" />
       </div>
       <Button type="submit" variant="secondary" disabled={pending}>
-        Save radius
+        {t.saveRadius}
       </Button>
       <p aria-live="polite" className="text-sm text-emerald-800">
-        {saved ? "Saved." : ""}
+        {saved ? t.saved : ""}
       </p>
       {error && (
         <p role="alert" className="w-full text-sm text-rose-700">

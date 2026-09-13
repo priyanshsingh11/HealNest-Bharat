@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Hint, Label, Textarea } from "@/components/ui/field";
 import { apiRequest } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
-import { ASPECT_LABELS } from "@/lib/reviews";
+import { useLocale, useMessages } from "@/lib/i18n/client";
+import { translateError } from "@/lib/i18n/errors";
+import { reviewsMessages } from "@/lib/i18n/messages/reviews";
 import { REVIEW_COMMENT_MAX, reviewSchema } from "@/lib/validations";
 import { REVIEW_ASPECTS, type ReviewAspect } from "@/types";
-
-const STAR_WORDS = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
 
 /** Accessible star picker: a radio group styled as stars. */
 function StarInput({
@@ -25,6 +25,7 @@ function StarInput({
   onChange: (value: number) => void;
   size?: "sm" | "lg";
 }) {
+  const t = useMessages(reviewsMessages).form;
   const name = useId();
   const [hover, setHover] = useState(0);
   const shown = hover || value;
@@ -43,13 +44,11 @@ function StarInput({
               aria-hidden
               className={cn(size === "lg" ? "size-8" : "size-6", star <= shown ? "fill-amber-400 text-amber-500" : "text-line")}
             />
-            <span className="sr-only">
-              {star} {star === 1 ? "star" : "stars"}
-            </span>
+            <span className="sr-only">{t.stars(star)}</span>
           </label>
         ))}
         <span className="ml-2 text-sm text-ink-muted" aria-hidden>
-          {STAR_WORDS[shown]}
+          {t.starWords[shown]}
         </span>
       </div>
     </fieldset>
@@ -58,6 +57,8 @@ function StarInput({
 
 /** Rate a completed visit: overall stars (required), aspect stars, a recommendation and a short comment. */
 export function ReviewForm({ bookingId, providerName }: { bookingId: string; providerName: string }) {
+  const locale = useLocale();
+  const t = reviewsMessages[locale];
   const router = useRouter();
   const [rating, setRating] = useState(0);
   const [aspects, setAspects] = useState<Partial<Record<ReviewAspect, number>>>({});
@@ -71,7 +72,8 @@ export function ReviewForm({ bookingId, providerName }: { bookingId: string; pro
     event.preventDefault();
     const parsed = reviewSchema.safeParse({ rating: rating || undefined, aspects, wouldRecommend: recommend, comment });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Please check your review");
+      const issue = parsed.error.issues[0]?.message;
+      setError(issue ? translateError(issue, locale) : t.form.checkReview);
       return;
     }
     setError(null);
@@ -80,22 +82,22 @@ export function ReviewForm({ bookingId, providerName }: { bookingId: string; pro
       await apiRequest(`/api/bookings/${bookingId}/review`, "POST", parsed.data);
       startTransition(() => router.refresh());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not send your review");
+      setError(e instanceof Error ? e.message : t.form.sendFailed);
       setSubmitting(false);
     }
   }
 
   return (
     <form onSubmit={submit} className="space-y-5" data-testid="review-form" noValidate>
-      <StarInput legend={`How was your visit with ${providerName}?`} value={rating} onChange={setRating} size="lg" />
+      <StarInput legend={t.form.overall(providerName)} value={rating} onChange={setRating} size="lg" />
 
       <fieldset>
-        <legend className="text-sm font-semibold text-ink">Rate the details (optional)</legend>
+        <legend className="text-sm font-semibold text-ink">{t.form.details}</legend>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           {REVIEW_ASPECTS.map((aspect) => (
             <StarInput
               key={aspect}
-              legend={ASPECT_LABELS[aspect]}
+              legend={t.aspects[aspect]}
               value={aspects[aspect] ?? 0}
               onChange={(value) => setAspects((current) => ({ ...current, [aspect]: value }))}
             />
@@ -104,11 +106,11 @@ export function ReviewForm({ bookingId, providerName }: { bookingId: string; pro
       </fieldset>
 
       <fieldset>
-        <legend className="text-sm font-semibold text-ink">Would you recommend them to family and friends?</legend>
+        <legend className="text-sm font-semibold text-ink">{t.form.recommend}</legend>
         <div className="mt-2 flex gap-2">
           {[
-            { value: true, label: "Yes", icon: ThumbsUp },
-            { value: false, label: "No", icon: ThumbsDown },
+            { value: true, label: t.form.yes, icon: ThumbsUp },
+            { value: false, label: t.form.no, icon: ThumbsDown },
           ].map(({ value, label, icon: Icon }) => (
             <button
               key={label}
@@ -127,17 +129,17 @@ export function ReviewForm({ bookingId, providerName }: { bookingId: string; pro
       </fieldset>
 
       <div>
-        <Label htmlFor={`review-${bookingId}`}>Your review (optional)</Label>
+        <Label htmlFor={`review-${bookingId}`}>{t.form.comment}</Label>
         <Textarea
           id={`review-${bookingId}`}
           value={comment}
           maxLength={REVIEW_COMMENT_MAX}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="What went well? What could be better?"
+          placeholder={t.form.commentPlaceholder}
           aria-describedby={`review-${bookingId}-hint`}
         />
         <Hint id={`review-${bookingId}-hint`}>
-          Shown publicly with your first name. Please leave out medical details. {comment.length}/{REVIEW_COMMENT_MAX}
+          {t.form.commentHint} {comment.length}/{REVIEW_COMMENT_MAX}
         </Hint>
       </div>
 
@@ -147,7 +149,7 @@ export function ReviewForm({ bookingId, providerName }: { bookingId: string; pro
         </p>
       )}
       <Button type="submit" disabled={submitting || pending} data-testid="submit-review">
-        {submitting || pending ? "Sending…" : "Submit review"}
+        {submitting || pending ? t.form.sending : t.form.submit}
       </Button>
     </form>
   );

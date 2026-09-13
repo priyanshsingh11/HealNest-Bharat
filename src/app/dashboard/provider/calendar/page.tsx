@@ -8,22 +8,29 @@ import { buttonClass } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { formatDate, formatSlotLabel } from "@/lib/formatters";
+import type { Locale } from "@/lib/i18n/config";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 import { flattenParams } from "@/lib/location";
 import { getProviderDashboard } from "@/lib/provider-dashboard";
 import type { BookingStatus } from "@/types";
 
-export const metadata: Metadata = { title: "Calendar" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getMessages(providerDashboardMessages);
+  return { title: t.calendar.title };
+}
 
 const DAY_MS = 24 * 3600 * 1000;
 const MAX_WEEKS_AHEAD = 3;
 const CLOSED = new Set<BookingStatus>(["CANCELLED", "DECLINED"]);
 const CALENDAR_PATH = "/dashboard/provider/calendar";
 
-function startsIn(iso: string, now: Date): string {
+function startsIn(iso: string, now: Date, locale: Locale): string {
+  const t = providerDashboardMessages[locale].calendar;
   const minutes = Math.round((Date.parse(iso) - now.getTime()) / 60_000);
-  if (minutes <= 0) return "Now";
-  if (minutes < 60) return `In ${minutes} min`;
-  return formatSlotLabel(iso, now);
+  if (minutes <= 0) return t.now;
+  if (minutes < 60) return t.inMinutes(minutes);
+  return formatSlotLabel(iso, now, locale);
 }
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -32,12 +39,14 @@ export default async function ProviderCalendarPage({ searchParams }: PageProps) 
   const { session, repo, provider } = await getProviderDashboard();
   if (!provider) return <ProviderGate missing={session.role === "provider"} />;
 
+  const locale = await getLocale();
+  const t = providerDashboardMessages[locale].calendar;
   const week = Math.min(MAX_WEEKS_AHEAD, Math.max(0, Math.trunc(Number(flattenParams(await searchParams).week)) || 0));
   const now = new Date();
   const todayKey = istDayKey(now.toISOString());
   const days: CalendarDay[] = Array.from({ length: 7 }, (_, i) => {
     const iso = new Date(now.getTime() + (week * 7 + i) * DAY_MS).toISOString();
-    return { key: istDayKey(iso), label: formatDate(iso), isToday: istDayKey(iso) === todayKey };
+    return { key: istDayKey(iso), label: formatDate(iso, locale), isToday: istDayKey(iso) === todayKey };
   });
   const keys = new Set(days.map((d) => d.key));
 
@@ -53,37 +62,36 @@ export default async function ProviderCalendarPage({ searchParams }: PageProps) 
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <ProviderDashboardHeader provider={provider} eyebrow="Calendar" />
+      <ProviderDashboardHeader provider={provider} eyebrow={t.title} />
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_20rem]">
         <Card className="min-w-0 p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold">{week === 0 ? "Next 7 days" : `Week from ${days[0].label}`}</h2>
+              <h2 className="text-lg font-bold">{week === 0 ? t.next7 : t.weekFrom(days[0].label)}</h2>
               <p className="text-sm text-ink-muted">
-                {weekBookings.length} {weekBookings.length === 1 ? "appointment" : "appointments"} · {openPlaces} open{" "}
-                {openPlaces === 1 ? "place" : "places"}
+                {t.summary(weekBookings.length, openPlaces)}
               </p>
             </div>
-            <nav aria-label="Weeks" className="flex flex-wrap gap-2">
+            <nav aria-label={t.weeks} className="flex flex-wrap gap-2">
               {week > 0 && (
                 <>
                   <Link href={weekHref(week - 1)} className={buttonClass({ variant: "secondary", size: "sm" })}>
-                    <ChevronLeft aria-hidden className="size-4" /> Previous
+                    <ChevronLeft aria-hidden className="size-4" /> {t.previous}
                   </Link>
                   <Link href={CALENDAR_PATH} className={buttonClass({ variant: "secondary", size: "sm" })}>
-                    Today
+                    {t.today}
                   </Link>
                 </>
               )}
               {week < MAX_WEEKS_AHEAD && (
                 <Link href={weekHref(week + 1)} className={buttonClass({ variant: "secondary", size: "sm" })}>
-                  Next <ChevronRight aria-hidden className="size-4" />
+                  {t.next} <ChevronRight aria-hidden className="size-4" />
                 </Link>
               )}
             </nav>
           </div>
-          <p className="mb-2 text-xs text-ink-muted sm:hidden">Swipe sideways to see all 7 days.</p>
+          <p className="mb-2 text-xs text-ink-muted sm:hidden">{t.swipe}</p>
           <WeekCalendar days={days} slots={weekSlots} bookings={weekBookings} nowIso={now.toISOString()} />
           <CalendarLegend />
         </Card>
@@ -91,15 +99,15 @@ export default async function ProviderCalendarPage({ searchParams }: PageProps) 
         <div className="space-y-6">
           <Card className="p-6">
             <h2 className="flex items-center gap-2 text-lg font-bold">
-              <BellRing aria-hidden className="size-4" /> Up next
+              <BellRing aria-hidden className="size-4" /> {t.upNext}
             </h2>
             {upNext.length === 0 ? (
-              <p className="mt-2 text-sm text-ink-muted">No upcoming appointments.</p>
+              <p className="mt-2 text-sm text-ink-muted">{t.noUpcoming}</p>
             ) : (
               <ol className="mt-3 space-y-3">
                 {upNext.map((b) => (
                   <li key={b.id} className="rounded-xl border border-line p-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-brand-700">{startsIn(b.scheduledStart, now)}</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-brand-700">{startsIn(b.scheduledStart, now, locale)}</p>
                     <Link href={`/booking/${b.id}`} className="font-semibold text-ink hover:underline">
                       {b.serviceName}
                     </Link>
@@ -114,16 +122,15 @@ export default async function ProviderCalendarPage({ searchParams }: PageProps) 
 
           <Card className="p-6">
             <h2 className="flex items-center gap-2 text-lg font-bold">
-              <CalendarPlus aria-hidden className="size-4" /> Reminders on your phone
+              <CalendarPlus aria-hidden className="size-4" /> {t.remindersTitle}
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Add your appointments to Google Calendar, Apple Calendar or Outlook, with a reminder 30 minutes before each one. Download
-              again after new bookings.
+              {t.remindersBody}
             </p>
             <a href={`/api/providers/${provider.id}/calendar`} download className={cn(buttonClass({ variant: "secondary" }), "mt-3 w-full")}>
-              <CalendarPlus aria-hidden className="size-4" /> Download calendar (.ics)
+              <CalendarPlus aria-hidden className="size-4" /> {t.download}
             </a>
-            <p className="mt-2 text-xs text-ink-muted">Patient addresses are left out of the file.</p>
+            <p className="mt-2 text-xs text-ink-muted">{t.addressesLeftOut}</p>
           </Card>
         </div>
       </div>

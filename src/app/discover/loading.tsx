@@ -1,7 +1,11 @@
-export default function DiscoverLoading() {
+import { discoverMessages } from "@/lib/i18n/messages/discover";
+import { getMessages } from "@/lib/i18n/server";
+
+export default async function DiscoverLoading() {
+  const t = await getMessages(discoverMessages);
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6" aria-busy="true" aria-live="polite">
-      <p className="sr-only">Loading nearby providers…</p>
+      <p className="sr-only">{t.loading}</p>
       <div className="h-8 w-72 animate-pulse rounded-lg bg-line" />
       <div className="mt-6 flex gap-2">
         {Array.from({ length: 5 }).map((_, i) => (

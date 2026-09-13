@@ -11,29 +11,37 @@ import { Badge } from "@/components/ui/badge";
 import { Card, SectionHeading } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatTime, formatTimeRange } from "@/lib/formatters";
+import type { Locale } from "@/lib/i18n/config";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
+import { reviewsMessages } from "@/lib/i18n/messages/reviews";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 import { getProviderDashboard } from "@/lib/provider-dashboard";
-import { ratingWord } from "@/lib/reviews";
 import type { Booking, BookingStatus, VerificationStatus } from "@/types";
 
-export const metadata: Metadata = { title: "Provider dashboard" };
+type OverviewMessages = (typeof providerDashboardMessages)["en"]["overview"];
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getMessages(providerDashboardMessages);
+  return { title: t.overview.title };
+}
 
 const ACTIVE = new Set<BookingStatus>(["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS"]);
 const WAITING = new Set<BookingStatus>(["ACCEPTED", "ON_THE_WAY", "ARRIVED"]);
 const CLOSED = new Set<BookingStatus>(["COMPLETED", "DECLINED", "CANCELLED"]);
 
-function PayoutLine({ booking }: { booking: Booking }) {
+function PayoutLine({ booking, t }: { booking: Booking; t: OverviewMessages }) {
   const { quote } = booking;
   return (
     <p className="text-xs text-ink-muted">
-      Customer pays {formatMoney(quote.totalMinor)} · <span className="font-semibold text-emerald-800">your payout {formatMoney(quote.providerPayoutMinor)}</span> ·
-      platform fee & margin {formatMoney(quote.platformEarningsMinor)}
-      {quote.taxMinor > 0 && ` · tax ${formatMoney(quote.taxMinor)}`}
-      {quote.hasEstimates && " · includes estimates"}
+      {t.customerPays(formatMoney(quote.totalMinor))} · <span className="font-semibold text-emerald-800">{t.yourPayout(formatMoney(quote.providerPayoutMinor))}</span> ·{" "}
+      {t.platformFee(formatMoney(quote.platformEarningsMinor))}
+      {quote.taxMinor > 0 && t.tax(formatMoney(quote.taxMinor))}
+      {quote.hasEstimates && t.includesEstimates}
     </p>
   );
 }
 
-function BookingRow({ booking, actions = true }: { booking: Booking; actions?: boolean }) {
+function BookingRow({ booking, locale, t, actions = true }: { booking: Booking; locale: Locale; t: OverviewMessages; actions?: boolean }) {
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-line p-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 space-y-1">
@@ -43,36 +51,32 @@ function BookingRow({ booking, actions = true }: { booking: Booking; actions?: b
           </Link>
           <StatusBadge status={booking.status} />
         </div>
-        <p className="text-sm text-ink-muted">{formatTimeRange(booking.scheduledStart, booking.scheduledEnd)} IST</p>
+        <p className="text-sm text-ink-muted">{formatTimeRange(booking.scheduledStart, booking.scheduledEnd, locale)} IST</p>
         <p className="text-sm text-ink-muted">
           {booking.address.addressText} · {booking.distanceKm} km
         </p>
         {booking.notes && <p className="text-sm text-ink">“{booking.notes}”</p>}
-        <PayoutLine booking={booking} />
+        <PayoutLine booking={booking} t={t} />
       </div>
       {actions && <RequestActions bookingId={booking.id} status={booking.status} />}
     </li>
   );
 }
 
-const QUEUE_STATE = {
-  waiting: { label: "Waiting", tone: "warning" },
-  with: { label: "With you", tone: "brand" },
-  attended: { label: "Attended", tone: "success" },
-} as const;
+const QUEUE_TONE = { waiting: "warning", with: "brand", attended: "success" } as const;
 
-function queueState(status: BookingStatus): keyof typeof QUEUE_STATE {
+function queueState(status: BookingStatus): keyof typeof QUEUE_TONE {
   if (status === "IN_PROGRESS") return "with";
   if (status === "COMPLETED") return "attended";
   return "waiting";
 }
 
-function VerificationCallout({ status, underReview }: { status: VerificationStatus; underReview: boolean }) {
+function VerificationCallout({ status, underReview, t }: { status: VerificationStatus; underReview: boolean; t: OverviewMessages["callout"] }) {
   const [title, body] = underReview
-    ? ["Your verification is under review", "HealNest Bharat staff are checking your documents. You'll get the blue verified tick once approved."]
+    ? [t.reviewTitle, t.reviewBody]
     : status === "rejected"
-      ? ["Your verification needs attention", "See the reviewer's note and resubmit your details."]
-      : ["Get verified to start receiving bookings", "Submit your ID, qualifications and registration. Verified caretakers get a blue tick and can be booked."];
+      ? [t.rejectedTitle, t.rejectedBody]
+      : [t.startTitle, t.startBody];
   return (
     <Link
       href="/dashboard/provider/verification"
@@ -91,6 +95,8 @@ export default async function ProviderDashboardPage() {
   const { session, repo, provider } = await getProviderDashboard();
   if (!provider) return <ProviderGate missing={session.role === "provider"} />;
 
+  const locale = await getLocale();
+  const t = providerDashboardMessages[locale].overview;
   const now = new Date();
   const today = istDayKey(now.toISOString());
   const [bookings, services, applications] = await Promise.all([
@@ -117,23 +123,23 @@ export default async function ProviderDashboardPage() {
   const platformShare = earning.reduce((sum, b) => sum + b.quote.platformEarningsMinor, 0);
   const patientNames = new Map(
     await Promise.all(
-      [...new Set(queue.map((b) => b.userId))].map(async (id) => [id, (await repo.getUser(id))?.name ?? "Patient"] as const),
+      [...new Set(queue.map((b) => b.userId))].map(async (id) => [id, (await repo.getUser(id))?.name ?? t.patient] as const),
     ),
   );
 
   const stats = [
-    { label: "New requests", value: String(requested.length), icon: ClipboardList },
-    { label: "Waiting in today's queue", value: String(waiting.length), icon: Users },
-    { label: "Attended today", value: String(attended.length), icon: CalendarClock },
-    { label: "Expected payout", value: formatMoney(expectedPayout), icon: Wallet },
+    { label: t.stats.newRequests, value: String(requested.length), icon: ClipboardList },
+    { label: t.stats.waiting, value: String(waiting.length), icon: Users },
+    { label: t.stats.attendedToday, value: String(attended.length), icon: CalendarClock },
+    { label: t.stats.expectedPayout, value: formatMoney(expectedPayout), icon: Wallet },
   ];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <ProviderDashboardHeader provider={provider} eyebrow="Provider dashboard" />
+      <ProviderDashboardHeader provider={provider} eyebrow={t.title} />
 
       {provider.verificationStatus !== "verified" && (
-        <VerificationCallout status={provider.verificationStatus} underReview={applications.length > 0} />
+        <VerificationCallout status={provider.verificationStatus} underReview={applications.length > 0} t={t.callout} />
       )}
 
       <ul className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -146,23 +152,22 @@ export default async function ProviderDashboardPage() {
         ))}
       </ul>
       <p className="mt-2 text-xs text-ink-muted">
-        Payout covers active and completed visits, from each booking&apos;s price snapshot. Platform fee & margin on those:{" "}
-        {formatMoney(platformShare)}.
+        {t.payoutNote(formatMoney(platformShare))}
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_24rem]">
         <div className="min-w-0 space-y-6">
           <Card className="p-6">
             <SectionHeading
-              title="Today's patient queue"
-              description="Confirmed patients for today in time order. Mark each one as you see them."
+              title={t.queueTitle}
+              description={t.queueDescription}
             />
             {queue.length > 0 && (
               <dl className="mb-4 grid grid-cols-3 gap-2 text-center">
                 {[
-                  ["Waiting", waiting.length],
-                  ["With you", withYou.length],
-                  ["Attended", attended.length],
+                  [t.queueState.waiting, waiting.length],
+                  [t.queueState.with, withYou.length],
+                  [t.queueState.attended, attended.length],
                 ].map(([label, count]) => (
                   <div key={label} className="rounded-xl bg-canvas p-3">
                     <dt className="text-xs font-bold uppercase tracking-wide text-ink-muted">{label}</dt>
@@ -174,12 +179,12 @@ export default async function ProviderDashboardPage() {
             {queue.length === 0 ? (
               <div className="rounded-xl border border-dashed border-brand-200 bg-brand-50/40 p-6 text-center text-sm text-ink-muted">
                 <Users aria-hidden className="mx-auto mb-2 size-6 text-brand-400" />
-                No confirmed patients for today.
+                {t.queueEmpty}
               </div>
             ) : (
               <ol className="space-y-3" data-testid="patient-queue">
                 {queue.map((booking, index) => {
-                  const state = QUEUE_STATE[queueState(booking.status)];
+                  const state = queueState(booking.status);
                   return (
                     <li
                       key={booking.id}
@@ -191,7 +196,7 @@ export default async function ProviderDashboardPage() {
                     >
                       <div className="flex min-w-0 items-start gap-3">
                         <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-sm font-extrabold ring-1 ring-line">
-                          <span className="sr-only">Token </span>#{index + 1}
+                          <span className="sr-only">{t.token}</span>#{index + 1}
                         </span>
                         <div className="min-w-0">
                           <p className="font-bold text-ink">
@@ -200,12 +205,12 @@ export default async function ProviderDashboardPage() {
                               · {booking.serviceName}
                             </Link>
                           </p>
-                          <p className="mt-1 text-sm text-ink-muted">{formatTime(booking.scheduledStart)}</p>
+                          <p className="mt-1 text-sm text-ink-muted">{formatTime(booking.scheduledStart, locale)}</p>
                           {booking.notes && <p className="mt-1 text-sm text-ink">“{booking.notes}”</p>}
                         </div>
                       </div>
                       <div className="flex flex-col items-start gap-2 sm:items-end">
-                        <Badge tone={state.tone}>{state.label}</Badge>
+                        <Badge tone={QUEUE_TONE[state]}>{t.queueState[state]}</Badge>
                         {booking.status !== "COMPLETED" && (
                           <RequestActions bookingId={booking.id} status={booking.status} queue />
                         )}
@@ -219,63 +224,63 @@ export default async function ProviderDashboardPage() {
 
           <Card className="p-6">
             <SectionHeading
-              title={`Incoming requests (${requested.length})`}
-              description="Accept or decline. Customers are notified immediately."
+              title={t.requestsTitle(requested.length)}
+              description={t.requestsDescription}
             />
             {requested.length === 0 ? (
-              <p className="text-sm text-ink-muted">No new requests.</p>
+              <p className="text-sm text-ink-muted">{t.requestsEmpty}</p>
             ) : (
-              <ul className="space-y-3">{requested.map((b) => <BookingRow key={b.id} booking={b} />)}</ul>
+              <ul className="space-y-3">{requested.map((b) => <BookingRow key={b.id} booking={b} locale={locale} t={t} />)}</ul>
             )}
           </Card>
 
           <Card className="p-6">
             <SectionHeading
-              title={`Upcoming confirmed (${upcoming.length})`}
-              description="Accepted visits on other days. They also appear on your calendar."
+              title={t.upcomingTitle(upcoming.length)}
+              description={t.upcomingDescription}
             />
             {upcoming.length === 0 ? (
-              <p className="text-sm text-ink-muted">Nothing else confirmed yet.</p>
+              <p className="text-sm text-ink-muted">{t.upcomingEmpty}</p>
             ) : (
-              <ul className="space-y-3">{upcoming.map((b) => <BookingRow key={b.id} booking={b} />)}</ul>
+              <ul className="space-y-3">{upcoming.map((b) => <BookingRow key={b.id} booking={b} locale={locale} t={t} />)}</ul>
             )}
           </Card>
 
           {past.length > 0 && (
             <Card className="p-6">
-              <SectionHeading title="Past & closed" />
-              <ul className="space-y-3">{past.map((b) => <BookingRow key={b.id} booking={b} actions={false} />)}</ul>
+              <SectionHeading title={t.past} />
+              <ul className="space-y-3">{past.map((b) => <BookingRow key={b.id} booking={b} locale={locale} t={t} actions={false} />)}</ul>
             </Card>
           )}
         </div>
 
         <div className="min-w-0 space-y-6">
           <Card className="p-6">
-            <h2 className="text-lg font-bold">Your rating</h2>
+            <h2 className="text-lg font-bold">{t.yourRating}</h2>
             <div className="mt-1 flex items-center gap-2">
               <span className="text-3xl font-extrabold">{provider.rating.toFixed(1)}</span>
               <Stars value={provider.rating} />
             </div>
             <p className="text-sm text-ink-muted">
-              {ratingWord(provider.rating)} · {provider.reviewCount} ratings
+              {reviewsMessages[locale].ratingWord(provider.rating)} · {t.ratingsCount(provider.reviewCount)}
             </p>
             <Link href="/dashboard/provider/reviews" className="mt-2 inline-block text-sm font-semibold text-brand-700 hover:underline">
-              Read your reviews →
+              {t.readReviews}
             </Link>
           </Card>
 
           <Card className="p-6">
             <h2 className="flex items-center gap-2 text-lg font-bold">
-              <MapPin aria-hidden className="size-4" /> Service area
+              <MapPin aria-hidden className="size-4" /> {t.serviceArea}
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Based in {provider.baseLocation.locality}, {provider.baseLocation.city}. You receive home-visit requests within this radius.
+              {t.basedIn(`${provider.baseLocation.locality}, ${provider.baseLocation.city}`)}
             </p>
             <div className="mt-3">
               <MapPanel
                 height={220}
                 radius={{ latitude: provider.baseLocation.latitude, longitude: provider.baseLocation.longitude, km: provider.serviceRadiusKm }}
-                markers={[{ id: provider.id, latitude: provider.baseLocation.latitude, longitude: provider.baseLocation.longitude, label: "Your base", kind: "provider" }]}
+                markers={[{ id: provider.id, latitude: provider.baseLocation.latitude, longitude: provider.baseLocation.longitude, label: t.yourBase, kind: "provider" }]}
               />
             </div>
             <div className="mt-4">
@@ -284,9 +289,9 @@ export default async function ProviderDashboardPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-lg font-bold">Your services</h2>
+            <h2 className="text-lg font-bold">{t.yourServices}</h2>
             <p className="mt-1 text-xs text-ink-muted">
-              Prices are set with HealNest Bharat admin. Home-visit travel fee {formatMoney(provider.travelFeeMinor)}.
+              {t.pricesNote(formatMoney(provider.travelFeeMinor))}
             </p>
             <ul className="mt-3 divide-y divide-line text-sm">
               {services.map((s) => (

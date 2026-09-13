@@ -7,21 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/formatters";
-import { ASPECT_LABELS, ratingWord, summarizeReviews, type StarCount } from "@/lib/reviews";
+import { useLocale } from "@/lib/i18n/client";
+import { reviewsMessages } from "@/lib/i18n/messages/reviews";
+import { summarizeReviews, type StarCount } from "@/lib/reviews";
 import type { Review, ReviewAspect } from "@/types";
 
-const FILTERS = [
-  { id: "all", label: "All" },
-  { id: "5", label: "5 stars" },
-  { id: "4", label: "4 stars" },
-  { id: "low", label: "3 stars & below" },
-  { id: "verified", label: "Verified visits" },
-  { id: "comments", label: "With comments" },
-] as const;
-type FilterId = (typeof FILTERS)[number]["id"];
+const FILTERS = ["all", "5", "4", "low", "verified", "comments"] as const;
+type FilterId = (typeof FILTERS)[number];
 
-const SORTS = { recent: "Most recent", high: "Highest rated", low: "Lowest rated" } as const;
-type SortId = keyof typeof SORTS;
+const SORTS = ["recent", "high", "low"] as const;
+type SortId = (typeof SORTS)[number];
 
 function matches(review: Review, filter: FilterId): boolean {
   switch (filter) {
@@ -59,13 +54,15 @@ function Bar({ percent, tone }: { percent: number; tone: "amber" | "brand" }) {
 
 /** Rating summary (score, star distribution, aspect scores) plus a filterable, sortable review list. */
 export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review[]; rating: number; reviewCount: number }) {
+  const locale = useLocale();
+  const t = reviewsMessages[locale];
   const [filter, setFilter] = useState<FilterId>("all");
   const [sort, setSort] = useState<SortId>("recent");
   const summary = useMemo(() => summarizeReviews(reviews), [reviews]);
   const visible = useMemo(() => reviews.filter((r) => matches(r, filter)).sort(compare(sort)), [reviews, filter, sort]);
 
   if (reviewCount === 0 && reviews.length === 0) {
-    return <p className="text-sm text-ink-muted">No ratings yet.</p>;
+    return <p className="text-sm text-ink-muted">{t.panel.noRatings}</p>;
   }
 
   return (
@@ -76,28 +73,28 @@ export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review
             {rating.toFixed(1)}
             <span className="text-lg font-semibold text-white/80">/5</span>
           </p>
-          <p className="font-bold">{ratingWord(rating)}</p>
-          <p className="text-sm text-white/80">{reviewCount} ratings</p>
+          <p className="font-bold">{t.ratingWord(rating)}</p>
+          <p className="text-sm text-white/80">{t.panel.ratings(reviewCount)}</p>
           {summary.recommendPercent !== null && (
             <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap text-leaf-200">
-              <ThumbsUp aria-hidden className="size-3.5" /> {summary.recommendPercent}% would recommend
+              <ThumbsUp aria-hidden className="size-3.5" /> {t.panel.wouldRecommend(summary.recommendPercent)}
             </p>
           )}
         </div>
         <div>
-          <ul className="space-y-1.5" aria-label="Star distribution">
+          <ul className="space-y-1.5" aria-label={t.panel.distribution}>
             {([5, 4, 3, 2, 1] as StarCount[]).map((star) => {
               const count = summary.distribution[star];
               return (
                 <li key={star} className="flex items-center gap-2 text-sm">
-                  <span className="w-12 shrink-0 text-ink-muted">{star} star</span>
+                  <span className="w-12 shrink-0 text-ink-muted">{t.panel.starRow(star)}</span>
                   <Bar percent={summary.count ? (count / summary.count) * 100 : 0} tone="amber" />
                   <span className="w-6 shrink-0 text-right tabular-nums text-ink-muted">{count}</span>
                 </li>
               );
             })}
           </ul>
-          <p className="mt-2 text-xs text-ink-muted">Distribution of the {summary.count} written reviews below.</p>
+          <p className="mt-2 text-xs text-ink-muted">{t.panel.distributionNote(summary.count)}</p>
         </div>
       </div>
 
@@ -106,7 +103,7 @@ export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review
           {summary.aspects.map(({ aspect, average }) => (
             <div key={aspect}>
               <dt className="flex justify-between text-sm">
-                <span>{ASPECT_LABELS[aspect]}</span>
+                <span>{t.aspects[aspect]}</span>
                 <span className="font-semibold">{average.toFixed(1)}</span>
               </dt>
               <dd className="mt-1 flex">
@@ -120,30 +117,30 @@ export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <div
           role="group"
-          aria-label="Filter reviews"
+          aria-label={t.panel.filterAria}
           className="-mx-1 flex max-w-full gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
         >
           {FILTERS.map((f) => (
             <button
-              key={f.id}
+              key={f}
               type="button"
-              aria-pressed={filter === f.id}
-              onClick={() => setFilter(f.id)}
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
               className={cn(
                 "inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm font-semibold whitespace-nowrap",
-                filter === f.id ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white text-ink hover:border-brand-300",
+                filter === f ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white text-ink hover:border-brand-300",
               )}
             >
-              {f.label}
+              {t.panel.filters[f]}
             </button>
           ))}
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-ink-muted">Sort</span>
+          <span className="text-ink-muted">{t.panel.sort}</span>
           <Select value={sort} onChange={(e) => setSort(e.target.value as SortId)} className="w-auto">
-            {Object.entries(SORTS).map(([id, label]) => (
+            {SORTS.map((id) => (
               <option key={id} value={id}>
-                {label}
+                {t.panel.sorts[id]}
               </option>
             ))}
           </Select>
@@ -151,7 +148,7 @@ export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review
       </div>
 
       {visible.length === 0 ? (
-        <p className="mt-4 text-sm text-ink-muted">No reviews match this filter.</p>
+        <p className="mt-4 text-sm text-ink-muted">{t.panel.noMatch}</p>
       ) : (
         <ul className="mt-4 space-y-4" aria-live="polite">
           {visible.map((review) => (
@@ -161,7 +158,7 @@ export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review
                   <p className="font-semibold text-ink">{review.authorName}</p>
                   {review.bookingId && (
                     <Badge tone="success">
-                      <BadgeCheck aria-hidden className="size-3.5" /> Verified visit
+                      <BadgeCheck aria-hidden className="size-3.5" /> {t.panel.verifiedVisit}
                     </Badge>
                   )}
                 </div>
@@ -171,16 +168,16 @@ export function ReviewsPanel({ reviews, rating, reviewCount }: { reviews: Review
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
                 {(Object.entries(review.aspects) as [ReviewAspect, number][]).map(([aspect, score]) => (
                   <span key={aspect}>
-                    {ASPECT_LABELS[aspect]} <span className="font-semibold text-ink">{score}/5</span>
+                    {t.aspects[aspect]} <span className="font-semibold text-ink">{score}/5</span>
                   </span>
                 ))}
                 {review.wouldRecommend && (
                   <span className="flex items-center gap-1 font-semibold text-emerald-800">
-                    <ThumbsUp aria-hidden className="size-3" /> Recommends
+                    <ThumbsUp aria-hidden className="size-3" /> {t.panel.recommends}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-ink-muted">{formatDate(review.createdAt)}</p>
+              <p className="mt-1 text-xs text-ink-muted">{formatDate(review.createdAt, locale)}</p>
             </li>
           ))}
         </ul>

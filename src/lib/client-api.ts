@@ -1,5 +1,8 @@
 // Tiny fetch wrapper for client components. Throws an Error with the server's user-facing message.
 
+import { localeFromCookieHeader } from "@/lib/i18n/config";
+import { translateError } from "@/lib/i18n/errors";
+
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -20,12 +23,15 @@ export async function apiRequest<T>(url: string, method: "GET" | "POST" | "PATCH
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiRequestError("Network error — check your connection and try again.", 0);
+    const locale = localeFromCookieHeader(typeof document === "undefined" ? null : document.cookie);
+    throw new ApiRequestError(translateError("Network error — check your connection and try again.", locale), 0);
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const error = data?.error;
-    throw new ApiRequestError(error?.message ?? `Request failed (${response.status})`, response.status, error?.issues ?? []);
+    // The server already translates its messages; only the fallback is written here.
+    const message = error?.message ?? translateError(`Request failed (${response.status})`, localeFromCookieHeader(document.cookie));
+    throw new ApiRequestError(message, response.status, error?.issues ?? []);
   }
   return data as T;
 }

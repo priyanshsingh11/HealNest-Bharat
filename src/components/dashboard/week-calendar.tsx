@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { STATUS_LABELS } from "@/lib/booking-status";
 import { cn } from "@/lib/cn";
 import { APP_TIME_ZONE, formatTime } from "@/lib/formatters";
+import { domainMessages } from "@/lib/i18n/messages/domain";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
+import { getLocale } from "@/lib/i18n/server";
 import type { AvailabilitySlot, Booking } from "@/types";
 
 // Timetable view of a provider's week: one column per day, slots and appointments placed by IST time.
@@ -46,7 +48,7 @@ function slotTone(slot: AvailabilitySlot): keyof typeof SLOT_TONE {
 
 export type CalendarDay = { key: string; label: string; isToday: boolean };
 
-export function WeekCalendar({
+export async function WeekCalendar({
   days,
   slots,
   bookings,
@@ -57,6 +59,8 @@ export function WeekCalendar({
   bookings: Booking[];
   nowIso: string;
 }) {
+  const locale = await getLocale();
+  const t = providerDashboardMessages[locale].week;
   const hours = Array.from({ length: CALENDAR_END_HOUR - CALENDAR_START_HOUR + 1 }, (_, i) => CALENDAR_START_HOUR + i);
   const height = (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * HOUR_PX;
   const nowMinutes = istMinutes(nowIso);
@@ -77,7 +81,7 @@ export function WeekCalendar({
             className={cn("border-b border-line px-1 pb-2 text-center text-xs font-bold uppercase tracking-wide", day.isToday ? "text-brand-700" : "text-ink-muted")}
           >
             {day.label}
-            {day.isToday && <span className="block text-[11px] font-semibold normal-case">Today</span>}
+            {day.isToday && <span className="block text-[11px] font-semibold normal-case">{t.today}</span>}
           </div>
         ))}
 
@@ -111,10 +115,10 @@ export function WeekCalendar({
                     style={position}
                   >
                     <p className="font-bold">
-                      <span className="whitespace-nowrap">{formatTime(slot.startAt)}</span> –{" "}
-                      <span className="whitespace-nowrap">{formatTime(slot.endAt)}</span>
+                      <span className="whitespace-nowrap">{formatTime(slot.startAt, locale)}</span> –{" "}
+                      <span className="whitespace-nowrap">{formatTime(slot.endAt, locale)}</span>
                     </p>
-                    <p>{slot.status === "blocked" ? "Blocked" : `${slot.bookedCount}/${slot.capacity} booked`}</p>
+                    <p>{slot.status === "blocked" ? t.blocked : t.booked(slot.bookedCount, slot.capacity)}</p>
                     {inSlot.map((b) => (
                       <Link key={b.id} href={`/booking/${b.id}`} className="mt-1 block truncate rounded bg-white/70 px-1 font-semibold hover:underline">
                         {b.serviceName}
@@ -133,9 +137,9 @@ export function WeekCalendar({
                     style={position}
                   >
                     <Link href={`/booking/${b.id}`} className="block truncate font-bold hover:underline">
-                      {formatTime(b.scheduledStart)} {b.serviceName}
+                      {formatTime(b.scheduledStart, locale)} {b.serviceName}
                     </Link>
-                    <p className="opacity-90">{STATUS_LABELS[b.status]}</p>
+                    <p className="opacity-90">{domainMessages[locale].statuses[b.status]}</p>
                   </li>
                 );
               })}
@@ -154,16 +158,17 @@ export function WeekCalendar({
   );
 }
 
-export function CalendarLegend() {
+export async function CalendarLegend() {
+  const t = providerDashboardMessages[await getLocale()].week;
   const items = [
-    { label: "Open", className: SLOT_TONE.open },
-    { label: "Partly booked", className: SLOT_TONE.partly },
-    { label: "Full", className: SLOT_TONE.full },
-    { label: "Blocked", className: SLOT_TONE.blocked },
-    { label: "Appointment", className: "border-brand-800 bg-brand-700" },
+    { label: t.open, className: SLOT_TONE.open },
+    { label: t.partly, className: SLOT_TONE.partly },
+    { label: t.full, className: SLOT_TONE.full },
+    { label: t.blocked, className: SLOT_TONE.blocked },
+    { label: t.appointment, className: "border-brand-800 bg-brand-700" },
   ];
   return (
-    <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-muted" aria-label="Legend">
+    <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-muted" aria-label={t.legend}>
       {items.map((item) => (
         <li key={item.label} className="flex items-center gap-1.5">
           <span aria-hidden className={cn("size-3 rounded border", item.className)} />
@@ -172,7 +177,7 @@ export function CalendarLegend() {
       ))}
       <li className="flex items-center gap-1.5">
         <span aria-hidden className="h-0 w-4 border-t-2 border-rose-500" />
-        Now
+        {t.now}
       </li>
     </ul>
   );

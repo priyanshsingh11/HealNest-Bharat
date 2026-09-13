@@ -5,17 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
+import { useMessages } from "@/lib/i18n/client";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
 
 /** Sections of the caretaker dashboard. */
 export function ProviderDashboardNav() {
   const pathname = usePathname();
   const activeRef = useRef<HTMLAnchorElement>(null);
+  const { nav: t } = useMessages(providerDashboardMessages);
   const items: { href: string; label: string; icon: LucideIcon }[] = [
-    { href: "/dashboard/provider", label: "Overview", icon: LayoutDashboard },
-    { href: "/dashboard/provider/calendar", label: "Calendar", icon: CalendarDays },
-    { href: "/dashboard/provider/schedule", label: "Slots", icon: Clock },
-    { href: "/dashboard/provider/verification", label: "Profile & verification", icon: BadgeCheck },
-    { href: "/dashboard/provider/reviews", label: "Ratings & reviews", icon: Star },
+    { href: "/dashboard/provider", label: t.overview, icon: LayoutDashboard },
+    { href: "/dashboard/provider/calendar", label: t.calendar, icon: CalendarDays },
+    { href: "/dashboard/provider/schedule", label: t.slots, icon: Clock },
+    { href: "/dashboard/provider/verification", label: t.verification, icon: BadgeCheck },
+    { href: "/dashboard/provider/reviews", label: t.reviews, icon: Star },
   ];
 
   // On phones the tabs scroll sideways; keep the current one in view. Braces matter: newer browsers return a
@@ -26,7 +29,7 @@ export function ProviderDashboardNav() {
 
   return (
     <nav
-      aria-label="Dashboard sections"
+      aria-label={t.aria}
       className="-mx-4 mt-5 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_85%,transparent)] sm:mx-0 sm:px-0 sm:[mask-image:none]"
     >
       <ul className="flex w-max gap-2 pr-6 sm:w-auto sm:flex-wrap sm:pr-0">

@@ -5,20 +5,27 @@ import { ButtonLink } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
 import { getRepository } from "@/lib/db";
 import { formatMoney, formatTimeRange } from "@/lib/formatters";
+import { bookingMessages } from "@/lib/i18n/messages/booking";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 import { isGuest } from "@/lib/session";
 
-export const metadata: Metadata = { title: "My bookings" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getMessages(bookingMessages);
+  return { title: t.listPage.title };
+}
 
 export default async function BookingsPage() {
   const session = await getSession();
+  const locale = await getLocale();
+  const t = bookingMessages[locale].listPage;
   if (isGuest(session)) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">My bookings</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t.title}</h1>
         <div className="mt-8 rounded-2xl border border-dashed border-line bg-white p-10 text-center">
-          <p className="font-semibold">Log in to see your bookings</p>
+          <p className="font-semibold">{t.loginPrompt}</p>
           <ButtonLink href="/login?next=/bookings" className="mt-4">
-            Log in
+            {t.login}
           </ButtonLink>
         </div>
       </div>
@@ -48,13 +55,13 @@ export default async function BookingsPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-        {session.role === "user" ? "My bookings" : session.role === "provider" ? "Your visit requests" : "All bookings"}
+        {session.role === "user" ? t.title : session.role === "provider" ? t.providerTitle : t.adminTitle}
       </h1>
       {bookings.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-line bg-white p-10 text-center">
-          <p className="font-semibold">No bookings yet</p>
+          <p className="font-semibold">{t.empty}</p>
           <ButtonLink href="/discover" className="mt-4">
-            Find care nearby
+            {t.findCare}
           </ButtonLink>
         </div>
       ) : (
@@ -70,12 +77,12 @@ export default async function BookingsPage() {
                   <div>
                     <p className="font-bold text-ink">{booking.serviceName}</p>
                     <p className="text-sm text-ink-muted">
-                      {booking.providerName} · {formatTimeRange(booking.scheduledStart, booking.scheduledEnd)}
+                      {booking.providerName} · {formatTimeRange(booking.scheduledStart, booking.scheduledEnd, locale)}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <StatusBadge status={booking.status} />
-                    {toRate && <span className="text-sm font-semibold text-brand-700">Rate your visit →</span>}
+                    {toRate && <span className="text-sm font-semibold text-brand-700">{t.rateVisit}</span>}
                     <span className="ml-auto font-bold tabular-nums sm:ml-0 sm:w-24 sm:text-right">{formatMoney(booking.totalAmountMinor)}</span>
                   </div>
                 </Link>

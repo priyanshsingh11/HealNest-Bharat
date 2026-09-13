@@ -5,6 +5,9 @@ import { useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import { apiRequest } from "@/lib/client-api";
+import { useLocale, useMessages } from "@/lib/i18n/client";
+import { adminMessages } from "@/lib/i18n/messages/admin";
+import { domainMessages } from "@/lib/i18n/messages/domain";
 import type { Category, LineItemType, PlatformConfig, PricingRule, Service, VerificationStatus } from "@/types";
 
 function useMutation() {
@@ -12,6 +15,7 @@ function useMutation() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const t = useMessages(adminMessages).controls;
   async function mutate(fn: () => Promise<unknown>) {
     setError(null);
     setSaved(false);
@@ -20,13 +24,14 @@ function useMutation() {
       setSaved(true);
       startTransition(() => router.refresh());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(e instanceof Error ? e.message : t.somethingWentWrong);
     }
   }
   return { pending, error, saved, mutate };
 }
 
 function Feedback({ error, saved }: { error: string | null; saved: boolean }) {
+  const t = useMessages(adminMessages).controls;
   return (
     <>
       {error && (
@@ -35,7 +40,7 @@ function Feedback({ error, saved }: { error: string | null; saved: boolean }) {
         </p>
       )}
       <span aria-live="polite" className="text-xs text-emerald-800">
-        {saved && !error ? "Saved" : ""}
+        {saved && !error ? t.saved : ""}
       </span>
     </>
   );
@@ -43,19 +48,20 @@ function Feedback({ error, saved }: { error: string | null; saved: boolean }) {
 
 export function VerificationSelect({ providerId, status, name }: { providerId: string; status: VerificationStatus; name: string }) {
   const { pending, error, saved, mutate } = useMutation();
+  const t = useMessages(adminMessages).controls;
   return (
     <div>
       <Select
-        aria-label={`Verification status for ${name}`}
+        aria-label={t.verificationFor(name)}
         value={status}
         disabled={pending}
         onChange={(e) => mutate(() => apiRequest(`/api/providers/${providerId}`, "PATCH", { verificationStatus: e.target.value }))}
         className="h-9 py-1"
       >
-        <option value="verified">Verified</option>
-        <option value="pending">Pending</option>
-        <option value="unverified">Unverified</option>
-        <option value="rejected">Rejected</option>
+        <option value="verified">{t.verificationOptions.verified}</option>
+        <option value="pending">{t.verificationOptions.pending}</option>
+        <option value="unverified">{t.verificationOptions.unverified}</option>
+        <option value="rejected">{t.verificationOptions.rejected}</option>
       </Select>
       <Feedback error={error} saved={saved} />
     </div>
@@ -66,25 +72,26 @@ export function VerificationSelect({ providerId, status, name }: { providerId: s
 export function VerificationDecision({ applicationId }: { applicationId: string }) {
   const { pending, error, saved, mutate } = useMutation();
   const [note, setNote] = useState("");
+  const t = useMessages(adminMessages).controls;
   const decide = (decision: "approve" | "reject") =>
     mutate(() => apiRequest(`/api/admin/verification/${applicationId}`, "PATCH", { decision, note }));
   return (
     <div className="space-y-2">
-      <Label htmlFor={`note-${applicationId}`}>Reviewer note</Label>
+      <Label htmlFor={`note-${applicationId}`}>{t.reviewerNote}</Label>
       <Textarea
         id={`note-${applicationId}`}
         value={note}
         maxLength={400}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="Required when rejecting — tell the caretaker what to fix."
+        placeholder={t.reviewerNotePlaceholder}
         className="min-h-16"
       />
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="success" size="sm" disabled={pending} onClick={() => decide("approve")} data-testid="approve-verification">
-          Approve & verify
+          {t.approve}
         </Button>
         <Button variant="danger" size="sm" disabled={pending} onClick={() => decide("reject")}>
-          Reject
+          {t.reject}
         </Button>
         <Feedback error={error} saved={saved} />
       </div>
@@ -94,6 +101,7 @@ export function VerificationDecision({ applicationId }: { applicationId: string 
 
 export function ActiveToggle({ url, active, label }: { url: string; active: boolean; label: string }) {
   const { pending, error, mutate } = useMutation();
+  const t = useMessages(adminMessages).controls;
   return (
     <div>
       <label className="inline-flex items-center gap-2 text-sm">
@@ -105,7 +113,7 @@ export function ActiveToggle({ url, active, label }: { url: string; active: bool
           onChange={(e) => mutate(() => apiRequest(url, "PATCH", { active: e.target.checked }))}
           aria-label={label}
         />
-        {active ? "Active" : "Inactive"}
+        {active ? t.active : t.inactive}
       </label>
       <Feedback error={error} saved={false} />
     </div>
@@ -115,6 +123,8 @@ export function ActiveToggle({ url, active, label }: { url: string; active: bool
 export function CategoryEditor({ category }: { category: Category }) {
   const { pending, error, saved, mutate } = useMutation();
   const [description, setDescription] = useState(category.description);
+  const t = useMessages(adminMessages).controls;
+  const locale = useLocale();
   return (
     <form
       className="space-y-2"
@@ -123,11 +133,11 @@ export function CategoryEditor({ category }: { category: Category }) {
         mutate(() => apiRequest(`/api/admin/categories/${category.id}`, "PATCH", { description }));
       }}
     >
-      <Label htmlFor={`cat-${category.id}`}>{category.name} — description</Label>
+      <Label htmlFor={`cat-${category.id}`}>{t.categoryDescription(domainMessages[locale].categories[category.id]?.name ?? category.name)}</Label>
       <Textarea id={`cat-${category.id}`} value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-16" />
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" variant="secondary" disabled={pending}>
-          Save
+          {t.save}
         </Button>
         <Feedback error={error} saved={saved} />
       </div>
@@ -138,6 +148,7 @@ export function CategoryEditor({ category }: { category: Category }) {
 export function ServicePriceEditor({ service }: { service: Service }) {
   const { pending, error, saved, mutate } = useMutation();
   const [rupees, setRupees] = useState(String(service.basePriceMinor / 100));
+  const t = useMessages(adminMessages).controls;
   return (
     <form
       className="flex items-center gap-2"
@@ -150,7 +161,7 @@ export function ServicePriceEditor({ service }: { service: Service }) {
         ₹
       </span>
       <Input
-        aria-label={`Base price in rupees for ${service.name}`}
+        aria-label={t.basePriceFor(service.name)}
         type="number"
         min={0}
         step="1"
@@ -159,7 +170,7 @@ export function ServicePriceEditor({ service }: { service: Service }) {
         className="h-9 w-24 py-1"
       />
       <Button type="submit" size="sm" variant="secondary" disabled={pending}>
-        Save
+        {t.save}
       </Button>
       <Feedback error={error} saved={saved} />
     </form>
@@ -172,6 +183,7 @@ export function PricingRuleEditor({ rule }: { rule: PricingRule }) {
   const [mode, setMode] = useState(rule.mode);
   const [amount, setAmount] = useState(String(rule.value / 100));
   const [active, setActive] = useState(rule.active);
+  const t = useMessages(adminMessages).controls;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -182,17 +194,17 @@ export function PricingRuleEditor({ rule }: { rule: PricingRule }) {
     <form onSubmit={submit} className="grid grid-cols-2 items-end gap-3 rounded-xl border border-line p-4 sm:grid-cols-[1fr_8rem_8rem_auto_auto]">
       <div className="col-span-2 sm:col-span-1">
         <p className="font-semibold text-ink">{rule.label}</p>
-        <p className="text-xs text-ink-muted">Applies to: {rule.itemType.replace("_", " ")} line</p>
+        <p className="text-xs text-ink-muted">{t.appliesTo(t.lineItems[rule.itemType])}</p>
       </div>
       <div>
-        <Label htmlFor={`${rule.id}-mode`}>Mode</Label>
+        <Label htmlFor={`${rule.id}-mode`}>{t.mode}</Label>
         <Select id={`${rule.id}-mode`} value={mode} onChange={(e) => setMode(e.target.value as PricingRule["mode"])} className="h-9 py-1">
-          <option value="fixed">Fixed ₹</option>
-          <option value="percent">Percent %</option>
+          <option value="fixed">{t.fixed}</option>
+          <option value="percent">{t.percent}</option>
         </Select>
       </div>
       <div>
-        <Label htmlFor={`${rule.id}-value`}>{mode === "fixed" ? "Amount (₹)" : "Percent (%)"}</Label>
+        <Label htmlFor={`${rule.id}-value`}>{mode === "fixed" ? t.amount : t.percentValue}</Label>
         <Input
           id={`${rule.id}-value`}
           type="number"
@@ -206,11 +218,11 @@ export function PricingRuleEditor({ rule }: { rule: PricingRule }) {
       </div>
       <label className="flex h-9 items-center gap-2 text-sm">
         <input type="checkbox" className="size-4 accent-brand-700" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        Active
+        {t.active}
       </label>
       <div className="flex items-center gap-2">
         <Button type="submit" size="sm" disabled={pending}>
-          Save
+          {t.save}
         </Button>
         <Feedback error={error} saved={saved} />
       </div>
@@ -218,20 +230,15 @@ export function PricingRuleEditor({ rule }: { rule: PricingRule }) {
   );
 }
 
-const TAXABLE: { value: Exclude<LineItemType, "tax">; label: string }[] = [
-  { value: "visit", label: "Visit fee" },
-  { value: "procedure", label: "Procedure fee" },
-  { value: "medicine", label: "Medicines" },
-  { value: "travel", label: "Travel fee" },
-  { value: "platform_fee", label: "Platform fee" },
-];
+const TAXABLE: Exclude<LineItemType, "tax">[] = ["visit", "procedure", "medicine", "travel", "platform_fee"];
 
 export function PlatformConfigForm({ config }: { config: PlatformConfig }) {
   const { pending, error, saved, mutate } = useMutation();
+  const t = useMessages(adminMessages).controls;
   const [form, setForm] = useState({
     taxLabel: config.taxLabel,
     taxRate: String(config.taxRateBps / 100),
-    taxAppliesTo: config.taxAppliesTo.filter((t): t is Exclude<LineItemType, "tax"> => t !== "tax"),
+    taxAppliesTo: config.taxAppliesTo.filter((item): item is Exclude<LineItemType, "tax"> => item !== "tax"),
     quoteValidityMinutes: String(config.quoteValidityMinutes),
     refundPolicy: config.refundPolicy,
     prescriptionRequiredForMedicine: config.prescriptionRequiredForMedicine,
@@ -263,42 +270,42 @@ export function PlatformConfigForm({ config }: { config: PlatformConfig }) {
     >
       <div className="grid gap-4 sm:grid-cols-4">
         <div>
-          <Label htmlFor="taxLabel">Tax label</Label>
+          <Label htmlFor="taxLabel">{t.taxLabel}</Label>
           <Input id="taxLabel" value={form.taxLabel} onChange={(e) => set("taxLabel", e.target.value)} />
         </div>
         <div>
-          <Label htmlFor="taxRate">Tax rate (%)</Label>
+          <Label htmlFor="taxRate">{t.taxRate}</Label>
           <Input id="taxRate" type="number" min={0} max={50} step="0.01" value={form.taxRate} onChange={(e) => set("taxRate", e.target.value)} />
         </div>
         <div>
-          <Label htmlFor="validity">Quote validity (min)</Label>
+          <Label htmlFor="validity">{t.quoteValidity}</Label>
           <Input id="validity" type="number" min={5} max={1440} value={form.quoteValidityMinutes} onChange={(e) => set("quoteValidityMinutes", e.target.value)} />
         </div>
         <div>
-          <Label htmlFor="emergency">Emergency number</Label>
+          <Label htmlFor="emergency">{t.emergencyNumber}</Label>
           <Input id="emergency" value={form.emergencyNumber} onChange={(e) => set("emergencyNumber", e.target.value)} />
         </div>
       </div>
       <fieldset>
-        <legend className="mb-1.5 text-sm font-semibold">Tax applies to</legend>
+        <legend className="mb-1.5 text-sm font-semibold">{t.taxAppliesTo}</legend>
         <div className="flex flex-wrap gap-4">
           {TAXABLE.map((item) => (
-            <label key={item.value} className="inline-flex items-center gap-2 text-sm">
+            <label key={item} className="inline-flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 className="size-4 accent-brand-700"
-                checked={form.taxAppliesTo.includes(item.value)}
+                checked={form.taxAppliesTo.includes(item)}
                 onChange={(e) =>
-                  set("taxAppliesTo", e.target.checked ? [...form.taxAppliesTo, item.value] : form.taxAppliesTo.filter((t) => t !== item.value))
+                  set("taxAppliesTo", e.target.checked ? [...form.taxAppliesTo, item] : form.taxAppliesTo.filter((x) => x !== item))
                 }
               />
-              {item.label}
+              {t.taxable[item]}
             </label>
           ))}
         </div>
       </fieldset>
       <div>
-        <Label htmlFor="refund">Refund policy</Label>
+        <Label htmlFor="refund">{t.refundPolicy}</Label>
         <Textarea id="refund" value={form.refundPolicy} onChange={(e) => set("refundPolicy", e.target.value)} />
       </div>
       <label className="inline-flex items-center gap-2 text-sm font-semibold">
@@ -308,19 +315,19 @@ export function PlatformConfigForm({ config }: { config: PlatformConfig }) {
           checked={form.prescriptionRequiredForMedicine}
           onChange={(e) => set("prescriptionRequiredForMedicine", e.target.checked)}
         />
-        Require a prescription for medicines
+        {t.requirePrescription}
       </label>
       <div>
-        <Label htmlFor="rxNote">Prescription note</Label>
+        <Label htmlFor="rxNote">{t.prescriptionNote}</Label>
         <Textarea id="rxNote" value={form.prescriptionNote} onChange={(e) => set("prescriptionNote", e.target.value)} className="min-h-16" />
       </div>
       <div>
-        <Label htmlFor="licensing">Licensing note</Label>
+        <Label htmlFor="licensing">{t.licensingNote}</Label>
         <Textarea id="licensing" value={form.licensingNote} onChange={(e) => set("licensingNote", e.target.value)} className="min-h-16" />
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
-          Save settings
+          {t.saveSettings}
         </Button>
         <Feedback error={error} saved={saved} />
       </div>

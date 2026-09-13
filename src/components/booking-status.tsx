@@ -1,8 +1,13 @@
+"use client";
+
 import { Ban, Check, CircleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { HAPPY_PATH, STATUS_LABELS } from "@/lib/booking-status";
+import { HAPPY_PATH } from "@/lib/booking-status";
 import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/formatters";
+import { useLocale } from "@/lib/i18n/client";
+import { bookingMessages } from "@/lib/i18n/messages/booking";
+import { domainMessages } from "@/lib/i18n/messages/domain";
 import type { BookingStatus, StatusEvent } from "@/types";
 
 const STATUS_TONE: Record<BookingStatus, "brand" | "success" | "warning" | "danger" | "neutral"> = {
@@ -17,29 +22,24 @@ const STATUS_TONE: Record<BookingStatus, "brand" | "success" | "warning" | "dang
 };
 
 export function StatusBadge({ status }: { status: BookingStatus }) {
-  return <Badge tone={STATUS_TONE[status]}>{STATUS_LABELS[status]}</Badge>;
+  const locale = useLocale();
+  return <Badge tone={STATUS_TONE[status]}>{domainMessages[locale].statuses[status]}</Badge>;
 }
-
-const STEP_HINT: Partial<Record<BookingStatus, string>> = {
-  REQUESTED: "Waiting for the provider to accept",
-  ACCEPTED: "Provider confirmed your visit",
-  ON_THE_WAY: "Provider is travelling to you",
-  ARRIVED: "Provider has arrived",
-  IN_PROGRESS: "Visit in progress",
-  COMPLETED: "Visit completed",
-};
 
 /** Vertical status timeline driven by the booking's status history. */
 export function BookingStatusTimeline({ status, history }: { status: BookingStatus; history: StatusEvent[] }) {
+  const locale = useLocale();
+  const t = bookingMessages[locale].status;
+  const labels = domainMessages[locale].statuses;
   const path = HAPPY_PATH;
-  const hints = STEP_HINT;
+  const hints = t.hints;
   const reached = new Map(history.map((event) => [event.status, event]));
   const terminal = status === "CANCELLED" || status === "DECLINED" ? reached.get(status) : undefined;
   const steps = terminal ? path.filter((s) => reached.has(s)) : path;
   const currentIndex = path.indexOf(status);
 
   return (
-    <ol className="relative space-y-0" aria-label="Booking progress">
+    <ol className="relative space-y-0" aria-label={t.progress}>
       {steps.map((step, index) => {
         const event = reached.get(step);
         const done = Boolean(event) && (terminal || path.indexOf(step) <= currentIndex);
@@ -59,11 +59,11 @@ export function BookingStatusTimeline({ status, history }: { status: BookingStat
             </span>
             <div className="pt-0.5">
               <p className={cn("text-sm font-semibold", done ? "text-ink" : "text-ink-muted")}>
-                {STATUS_LABELS[step]}
-                <span className="sr-only">{done ? " (done)" : " (upcoming)"}</span>
+                {labels[step]}
+                <span className="sr-only">{done ? t.done : t.upcoming}</span>
               </p>
               <p className="text-xs text-ink-muted">
-                {event ? formatDateTime(event.at) : hints[step]}
+                {event ? formatDateTime(event.at, locale) : hints[step]}
                 {event?.note ? ` · ${event.note}` : ""}
               </p>
             </div>
@@ -76,9 +76,9 @@ export function BookingStatusTimeline({ status, history }: { status: BookingStat
             {status === "CANCELLED" ? <Ban aria-hidden className="size-4" /> : <CircleAlert aria-hidden className="size-4" />}
           </span>
           <div className="pt-0.5">
-            <p className="text-sm font-semibold text-ink">{STATUS_LABELS[status]}</p>
+            <p className="text-sm font-semibold text-ink">{labels[status]}</p>
             <p className="text-xs text-ink-muted">
-              {formatDateTime(terminal.at)} · by {terminal.by === "user" ? "customer" : terminal.by}
+              {formatDateTime(terminal.at, locale)} · {t.by(terminal.by)}
             </p>
           </div>
         </li>

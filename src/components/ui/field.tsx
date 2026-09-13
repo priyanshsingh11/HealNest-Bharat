@@ -17,14 +17,7 @@ export function Hint({ id, children }: { id?: string; children: ReactNode }) {
   );
 }
 
-export function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
-  return (
-    <p id={id} role="alert" className="mt-1 text-sm font-medium text-rose-700">
-      {message}
-    </p>
-  );
-}
+export { FieldError } from "@/components/ui/field-error";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(inputClass, className)} {...props} />;

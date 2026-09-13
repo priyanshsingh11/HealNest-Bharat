@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LocationPicker } from "@/components/location-picker";
+import { useMessages } from "@/lib/i18n/client";
+import { locationMessages } from "@/lib/i18n/messages/location";
 import { locationToParams, type ChosenLocation } from "@/lib/location";
 
 /** Lets the user change location on the discovery page while keeping the chosen category and service. */
@@ -16,11 +18,12 @@ export function DiscoverLocationBar({
   service?: string;
 }) {
   const router = useRouter();
+  const t = useMessages(locationMessages).picker;
   const [value, setValue] = useState<ChosenLocation | null>(location);
 
   return (
     <LocationPicker
-      label={location ? "Change location" : "Where do you need care?"}
+      label={location ? t.changeLocation : t.label}
       value={value}
       onChange={(next) => {
         setValue(next);

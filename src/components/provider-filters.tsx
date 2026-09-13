@@ -5,29 +5,29 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { Input, Label, Select } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
+import { useMessages } from "@/lib/i18n/client";
+import { discoverMessages } from "@/lib/i18n/messages/discover";
 
 type Current = Record<string, string | undefined>;
+type FilterCopy = (typeof discoverMessages)["en"]["filters"];
 
 /** Location/category/service params survive "clear filters". */
 const KEEP_ON_RESET = ["lat", "lng", "label", "category", "service"];
-
-const AVAILABILITY_LABELS: Record<string, string> = { today: "Today", tomorrow: "By tomorrow", week: "Within 7 days" };
-const GENDER_LABELS: Record<string, string> = { female: "Female", male: "Male" };
 
 /**
  * Params shown as removable chips and counted in the badge, in the order they appear.
  * Service and category are the page's scope — set from the nav, kept by "clear all" — so they are
  * deliberately left out of both.
  */
-const CHIPS: { key: string; label: (value: string) => string }[] = [
+const CHIPS: { key: string; label: (value: string, t: FilterCopy) => string }[] = [
   { key: "q", label: (v) => `“${v}”` },
-  { key: "verifiedOnly", label: () => "Verified only" },
-  { key: "availability", label: (v) => AVAILABILITY_LABELS[v] ?? v },
-  { key: "maxDistanceKm", label: (v) => `Within ${v} km` },
-  { key: "maxPrice", label: (v) => `Up to ₹${Number(v).toLocaleString("en-IN")}` },
-  { key: "minRating", label: (v) => `${v}★ and up` },
+  { key: "verifiedOnly", label: (_, t) => t.verifiedOnlyChip },
+  { key: "availability", label: (v, t) => t.availabilityChips[v] ?? v },
+  { key: "maxDistanceKm", label: (v, t) => t.withinKm(v) },
+  { key: "maxPrice", label: (v, t) => t.upToPrice(Number(v).toLocaleString("en-IN")) },
+  { key: "minRating", label: (v, t) => t.ratingAndUp(v) },
   { key: "language", label: (v) => v },
-  { key: "gender", label: (v) => GENDER_LABELS[v] ?? v },
+  { key: "gender", label: (v, t) => t.genders[v] ?? v },
 ];
 
 type Option = { value: string; label: string };
@@ -108,6 +108,7 @@ export function ProviderFilters({
   resultCount: number;
 }) {
   const id = useId();
+  const t = useMessages(discoverMessages).filters;
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
@@ -147,7 +148,7 @@ export function ProviderFilters({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <p aria-live="polite" className="sr-only">
-        {pending ? "Updating results" : ""}
+        {pending ? t.updating : ""}
       </p>
 
       <button
@@ -166,7 +167,7 @@ export function ProviderFilters({
         ) : (
           <SlidersHorizontal aria-hidden className="size-4 text-brand-700" />
         )}
-        Filters & sorting
+        {t.title}
         {active.length > 0 && (
           <span className="grid min-w-5 place-items-center rounded-full bg-brand-700 px-1.5 py-0.5 text-xs font-bold text-white">
             {active.length}
@@ -182,15 +183,15 @@ export function ProviderFilters({
           onClick={() => update(chip.key, null)}
           className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-white pr-2.5 pl-3.5 text-sm font-semibold text-ink transition hover:border-rose-300 hover:text-rose-800"
         >
-          {chip.label(current[chip.key]!)}
+          {chip.label(current[chip.key]!, t)}
           <X aria-hidden className="size-3.5" />
-          <span className="sr-only">Remove filter</span>
+          <span className="sr-only">{t.removeFilter}</span>
         </button>
       ))}
 
       {active.length > 0 && (
         <button type="button" onClick={reset} className="px-1 text-sm font-semibold text-brand-700 hover:underline">
-          Clear all
+          {t.clearAll}
         </button>
       )}
 
@@ -207,12 +208,12 @@ export function ProviderFilters({
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-line px-5 py-4">
             <h2 id={f("drawer-title")} className="flex items-center gap-2 text-lg font-bold">
-              <SlidersHorizontal aria-hidden className="size-4 text-brand-700" /> Filters & sorting
+              <SlidersHorizontal aria-hidden className="size-4 text-brand-700" /> {t.title}
             </h2>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Close filters"
+              aria-label={t.close}
               className="grid size-9 place-items-center rounded-lg text-ink-muted transition hover:bg-canvas hover:text-ink"
             >
               <X aria-hidden className="size-5" />
@@ -229,21 +230,21 @@ export function ProviderFilters({
                 update("q", typeof q === "string" && q.trim() ? q.trim() : null);
               }}
             >
-              <Label htmlFor={f("q")}>Search by name or service</Label>
+              <Label htmlFor={f("q")}>{t.searchLabel}</Label>
               <Search aria-hidden className="pointer-events-none absolute bottom-3 left-3 size-4 text-ink-muted" />
               <Input
                 id={f("q")}
                 name="q"
                 key={current.q ?? ""}
                 defaultValue={current.q ?? ""}
-                placeholder="e.g. wound dressing"
+                placeholder={t.searchPlaceholder}
                 className={cn("pl-9", current.q && "pr-9")}
               />
               {current.q && (
                 <button
                   type="button"
                   onClick={() => update("q", null)}
-                  aria-label="Clear search"
+                  aria-label={t.clearSearch}
                   className="absolute right-1.5 bottom-1.5 grid size-7 place-items-center rounded-md text-ink-muted transition hover:bg-canvas hover:text-ink"
                 >
                   <X aria-hidden className="size-4" />
@@ -253,15 +254,15 @@ export function ProviderFilters({
 
             <div className="mt-5 border-t border-line pt-5">
               <ChipGroup
-                legend="Sort by"
+                legend={t.sortBy}
                 name="sort"
                 value={current.sort ?? "distance"}
                 onChange={(value) => update("sort", value === "distance" ? null : value)}
                 options={[
-                  { value: "distance", label: "Nearest" },
-                  { value: "availability", label: "Soonest" },
-                  { value: "rating", label: "Top rated" },
-                  { value: "price", label: "Lowest price" },
+                  { value: "distance", label: t.sort.distance },
+                  { value: "availability", label: t.sort.availability },
+                  { value: "rating", label: t.sort.rating },
+                  { value: "price", label: t.sort.price },
                 ]}
               />
             </div>
@@ -281,31 +282,31 @@ export function ProviderFilters({
                   checked={current.verifiedOnly === "1"}
                   onChange={(e) => update("verifiedOnly", e.target.checked ? "1" : null)}
                 />
-                <span className="text-sm font-semibold text-ink">Verified providers only</span>
+                <span className="text-sm font-semibold text-ink">{t.verifiedOnlyToggle}</span>
               </label>
             </div>
 
             <div className="mt-5 space-y-5 border-t border-line pt-5">
               <ChipGroup
-                legend="Availability"
+                legend={t.availability}
                 name="availability"
                 value={current.availability ?? ""}
                 onChange={(value) => update("availability", value)}
                 options={[
-                  { value: "", label: "Any time" },
-                  { value: "today", label: "Today" },
-                  { value: "tomorrow", label: "By tomorrow" },
-                  { value: "week", label: "7 days" },
+                  { value: "", label: t.anyTime },
+                  { value: "today", label: t.availabilityOptions.today },
+                  { value: "tomorrow", label: t.availabilityOptions.tomorrow },
+                  { value: "week", label: t.availabilityOptions.week },
                 ]}
               />
 
               <ChipGroup
-                legend="Maximum distance"
+                legend={t.maxDistance}
                 name="distance"
                 value={current.maxDistanceKm ?? ""}
                 onChange={(value) => update("maxDistanceKm", value)}
                 options={[
-                  { value: "", label: "Any" },
+                  { value: "", label: t.any },
                   { value: "3", label: "3 km" },
                   { value: "5", label: "5 km" },
                   { value: "10", label: "10 km" },
@@ -314,12 +315,12 @@ export function ProviderFilters({
               />
 
               <ChipGroup
-                legend="Starting price"
+                legend={t.startingPrice}
                 name="price"
                 value={current.maxPrice ?? ""}
                 onChange={(value) => update("maxPrice", value)}
                 options={[
-                  { value: "", label: "Any" },
+                  { value: "", label: t.any },
                   { value: "500", label: "≤ ₹500" },
                   { value: "800", label: "≤ ₹800" },
                   { value: "1000", label: "≤ ₹1,000" },
@@ -328,32 +329,32 @@ export function ProviderFilters({
               />
 
               <ChipGroup
-                legend="Minimum rating"
+                legend={t.minRating}
                 name="rating"
                 value={current.minRating ?? ""}
                 onChange={(value) => update("minRating", value)}
                 options={[
-                  { value: "", label: "Any" },
-                  { value: "4.5", label: "4.5★ and up" },
-                  { value: "4", label: "4.0★ and up" },
+                  { value: "", label: t.any },
+                  { value: "4.5", label: t.ratingAndUp("4.5") },
+                  { value: "4", label: t.ratingAndUp("4.0") },
                 ]}
               />
 
               <ChipGroup
-                legend="Provider gender preference"
+                legend={t.gender}
                 name="gender"
                 value={current.gender ?? ""}
                 onChange={(value) => update("gender", value)}
                 options={[
-                  { value: "", label: "No preference" },
-                  { value: "female", label: "Female" },
-                  { value: "male", label: "Male" },
+                  { value: "", label: t.noPreference },
+                  { value: "female", label: t.genders.female },
+                  { value: "male", label: t.genders.male },
                 ]}
               />
 
-              <Group label="Language" htmlFor={f("language")}>
+              <Group label={t.language} htmlFor={f("language")}>
                 <Select id={f("language")} value={current.language ?? ""} onChange={(e) => update("language", e.target.value || null)}>
-                  <option value="">Any language</option>
+                  <option value="">{t.anyLanguage}</option>
                   {languages.map((language) => (
                     <option key={language} value={language}>
                       {language}
@@ -371,14 +372,14 @@ export function ProviderFilters({
               disabled={active.length === 0}
               className="text-sm font-semibold text-brand-700 hover:underline disabled:text-ink-muted disabled:no-underline disabled:opacity-50"
             >
-              Clear all
+              {t.clearAll}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="inline-flex h-11 flex-1 items-center justify-center rounded-xl bg-brand-700 px-5 font-bold text-white transition hover:bg-brand-800"
             >
-              Show {resultCount} {resultCount === 1 ? "provider" : "providers"}
+              {t.show(resultCount)}
             </button>
           </div>
         </div>

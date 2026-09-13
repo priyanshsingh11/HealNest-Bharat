@@ -2,15 +2,18 @@
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useMessages } from "@/lib/i18n/client";
+import { servicesMessages } from "@/lib/i18n/messages/services";
 
 type ScopeItem = { title: string; description: string };
 
 export function ServiceScopeAccordion({ items }: { items: ScopeItem[] }) {
+  const t = useMessages(servicesMessages).scope;
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <div className="mt-5 border-t border-line pt-2" aria-label="Home nursing care scope">
-      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-brand-700">Care scope</p>
+    <div className="mt-5 border-t border-line pt-2" aria-label={t.aria}>
+      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-brand-700">{t.heading}</p>
       {items.map((item, index) => {
         const isOpen = openIndex === index;
         return (

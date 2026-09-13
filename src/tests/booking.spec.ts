@@ -1,5 +1,5 @@
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
-import { STAFF_PASSCODE } from "../../playwright.config";
+import { STAFF_EMAIL, STAFF_PASSCODE } from "../../playwright.config";
 
 // End-to-end smoke test: location → category → provider → booking → confirmation.
 // Runs against the in-memory data source (see playwright.config.ts), which starts with no providers, so the suite first
@@ -13,6 +13,19 @@ let nurse: { id: string; name: string; token: string };
 function istDate(days: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(Date.now() + days * 24 * 3600 * 1000));
 }
+
+/** An admin session is just the role cookie; see src/lib/session.ts. */
+const ADMIN_COOKIE = {
+  name: "hn_role",
+  value: "admin",
+  domain: "localhost",
+  path: "/",
+  expires: -1,
+  httpOnly: true,
+  secure: false,
+  sameSite: "Lax",
+} as const;
+const ADMIN_STATE = { cookies: [ADMIN_COOKIE], origins: [] };
 
 async function json(response: APIResponse) {
   expect(response.ok(), await response.text()).toBe(true);
@@ -69,8 +82,11 @@ test.beforeAll(async ({ playwright }, testInfo) => {
     }),
   );
 
-  await json(await api.post("/api/session", { data: { role: "admin", passcode: STAFF_PASSCODE } }));
-  await json(await api.patch(`/api/admin/verification/${application.id}`, { data: { decision: "approve" } }));
+  // Staff sign-in needs a code emailed by Supabase, which this server can't do; the admin session cookie is
+  // set directly instead. The sign-in gate itself is covered by its own test below.
+  const admin = await playwright.request.newContext({ baseURL: testInfo.project.use.baseURL, storageState: ADMIN_STATE });
+  await json(await admin.patch(`/api/admin/verification/${application.id}`, { data: { decision: "approve" } }));
+  await admin.dispose();
   await api.dispose();
   nurse = { id: providerId, name, token: account.token };
 });
@@ -200,24 +216,48 @@ test("the login page never lists accounts", async ({ page }) => {
   await expect(page.getByText(nurse.name)).toHaveCount(0);
 });
 
-test("the admin dashboard needs the staff passcode", async ({ page }) => {
-  // Nothing on the site links to /staff, and the dashboard itself hands out no way in.
+test("staff sign-in needs the passcode and a listed staff address", async ({ page }) => {
+  // The dashboard itself hands out no way in.
   await page.goto("/dashboard/admin");
   await expect(page.getByRole("heading", { name: "Provider verification" })).toHaveCount(0);
 
-  await page.goto("/staff");
+  // The login page carries the staff entry, closed until asked for.
+  await page.goto("/login");
+  await expect(page.getByLabel("Staff passcode")).toHaveCount(0);
+  await page.getByTestId("staff-sign-in-toggle").click();
+
+  await page.getByLabel("Staff email").fill(STAFF_EMAIL);
   await page.getByLabel("Staff passcode").fill("wrong-passcode");
-  await page.getByTestId("staff-login-submit").click();
+  await page.getByRole("button", { name: "Send sign-in code" }).click();
   // Not getByRole("alert"): Next's route announcer is one too.
   await expect(page.getByText("That passcode is not correct.")).toBeVisible();
 
+  // Right passcode, but an address that isn't staff: no code is sent.
+  await page.getByLabel("Staff email").fill("someone@example.com");
   await page.getByLabel("Staff passcode").fill(STAFF_PASSCODE);
-  await page.getByTestId("staff-login-submit").click();
+  await page.getByRole("button", { name: "Send sign-in code" }).click();
+  await expect(page.getByText("That address is not on the staff list.")).toBeVisible();
+
+  // Both gates passed, so it tries to email a code — this server has no reachable Supabase to send it.
+  await page.getByLabel("Staff email").fill(STAFF_EMAIL);
+  await page.getByRole("button", { name: "Send sign-in code" }).click();
+  await expect(page.getByText(/Could not send the sign-in code/)).toBeVisible();
+
+  // The passcode alone never opens a session, however it is presented.
+  const refused = await page.request.post("/api/session", { data: { role: "admin", passcode: STAFF_PASSCODE } });
+  expect(refused.status()).toBe(403);
+  await page.goto("/dashboard/admin");
+  await expect(page.getByRole("heading", { name: "Provider verification" })).toHaveCount(0);
+});
+
+test("the admin dashboard renders for an admin session", async ({ page, context }) => {
+  await context.addCookies([ADMIN_COOKIE]);
+  await page.goto("/dashboard/admin");
   await expect(page.getByRole("heading", { name: "Provider verification" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pricing rules & platform margin" })).toBeVisible();
 
   // Log out so other tests start as a guest.
-  await page.context().clearCookies();
+  await context.clearCookies();
 });
 
 test("provider dashboard pages load", async ({ page }) => {

@@ -177,6 +177,15 @@ export const sessionSchema = z.object({
   deviceToken: z.string().max(200).optional(),
   /** Staff passcode. Required for the admin role, which has no account picker. */
   passcode: z.string().max(200).optional(),
+  /** Staff address the code was sent to, and the code itself. Both required for the admin role. */
+  email: z.string().trim().max(120).optional(),
+  code: z.string().trim().max(12).optional(),
+});
+
+/** Step one of staff sign-in: the passcode plus the address to email a code to. */
+export const staffCodeSchema = z.object({
+  passcode: z.string().min(1, "Enter the staff passcode").max(200),
+  email: z.email("Enter a valid email address").max(120),
 });
 
 const accountFields = {

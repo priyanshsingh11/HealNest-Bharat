@@ -8,8 +8,11 @@ import { CareServiceIcon, CategoryIcon, ComingSoonBadge } from "@/components/cat
 import { LocationPicker } from "@/components/location-picker";
 import { Button } from "@/components/ui/button";
 import { CARE_SERVICES, isCareServiceComingSoon } from "@/lib/care-services";
-import { isComingSoon, PROFESSION_LABELS } from "@/lib/categories";
+import { isComingSoon } from "@/lib/categories";
 import { cn } from "@/lib/cn";
+import { useLocale } from "@/lib/i18n/client";
+import { domainMessages, localizeCareService } from "@/lib/i18n/messages/domain";
+import { homeMessages } from "@/lib/i18n/messages/home";
 import { locationToParams, type ChosenLocation } from "@/lib/location";
 import type { CareServiceId, Category, CategoryId } from "@/types";
 
@@ -18,13 +21,16 @@ type Selection = { category?: CategoryId; service?: CareServiceId };
 /** Homepage flow: choose a location, then a care service or professional → discovery results. */
 export function HomeSearch({ categories }: { categories: Category[] }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = homeMessages[locale].search;
+  const professions = domainMessages[locale].professions;
   const inputRef = useRef<HTMLInputElement>(null);
   const [location, setLocation] = useState<ChosenLocation | null>(null);
   const [error, setError] = useState<string | undefined>();
 
   function go(selection: Selection = {}) {
     if (!location) {
-      setError("Choose your area or use your current location first.");
+      setError(t.chooseLocationFirst);
       inputRef.current?.focus();
       return;
     }
@@ -48,21 +54,22 @@ export function HomeSearch({ categories }: { categories: Category[] }) {
           }}
         />
         <Button size="lg" className="mt-4 w-full sm:w-auto" onClick={() => go()} data-testid="find-care">
-          Find care nearby <ArrowRight aria-hidden className="size-4" />
+          {t.findNearby} <ArrowRight aria-hidden className="size-4" />
         </Button>
       </div>
 
       <section aria-labelledby="services-heading">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="services-heading" className="text-xl font-bold text-ink">
-            What do you need at home?
+            {t.servicesHeading}
           </h2>
           <Link href="/services" className="text-sm font-semibold text-brand-700 hover:underline">
-            Service details & prices →
+            {t.servicesLink}
           </Link>
         </div>
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {CARE_SERVICES.map((service) => {
+          {CARE_SERVICES.map((english) => {
+            const service = localizeCareService(english, locale);
             const soon = isCareServiceComingSoon(service);
             return (
               <li key={service.id}>
@@ -104,7 +111,7 @@ export function HomeSearch({ categories }: { categories: Category[] }) {
 
       <section aria-labelledby="categories-heading" className="flex flex-wrap items-center gap-3">
         <h2 id="categories-heading" className="text-sm font-semibold text-ink-muted">
-          Or choose a professional:
+          {t.categoriesHeading}
         </h2>
         {/* One swipeable row on phones; wraps on wider screens. */}
         <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
@@ -116,7 +123,7 @@ export function HomeSearch({ categories }: { categories: Category[] }) {
                   type="button"
                   disabled={soon}
                   aria-disabled={soon || undefined}
-                  title={soon ? `${PROFESSION_LABELS[category.id]} — coming soon` : undefined}
+                  title={soon ? t.comingSoonTitle(professions[category.id]) : undefined}
                   onClick={() => go({ category: category.id })}
                   data-testid={`category-${category.id}`}
                   className={cn(
@@ -127,8 +134,8 @@ export function HomeSearch({ categories }: { categories: Category[] }) {
                   )}
                 >
                   <CategoryIcon category={category.id} className="size-4" />
-                  {PROFESSION_LABELS[category.id]}
-                  {soon && <span className="text-xs font-bold text-amber-700">· Soon</span>}
+                  {professions[category.id]}
+                  {soon && <span className="text-xs font-bold text-amber-700">{t.soon}</span>}
                 </button>
               </li>
             );

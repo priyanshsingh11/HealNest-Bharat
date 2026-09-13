@@ -5,6 +5,8 @@ import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/field";
 import { apiRequest } from "@/lib/client-api";
+import { useMessages } from "@/lib/i18n/client";
+import { providerDashboardMessages } from "@/lib/i18n/messages/provider-dashboard";
 import { useDeviceAccounts } from "@/lib/use-device-accounts";
 
 /**
@@ -16,6 +18,7 @@ import { useDeviceAccounts } from "@/lib/use-device-accounts";
 export function ProviderSwitcher({ currentProviderId }: { currentProviderId?: string | null }) {
   const id = useId();
   const router = useRouter();
+  const { switcher: t } = useMessages(providerDashboardMessages);
   const { accounts } = useDeviceAccounts("provider");
   const [chosenId, setChosenId] = useState("");
   const [pending, startTransition] = useTransition();
@@ -32,7 +35,7 @@ export function ProviderSwitcher({ currentProviderId }: { currentProviderId?: st
       await apiRequest("/api/session", "POST", { role: "provider", providerId: nextProviderId, deviceToken: account.token });
       startTransition(() => router.refresh());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not switch profile");
+      setError(e instanceof Error ? e.message : t.failed);
     }
   }
 
@@ -42,7 +45,7 @@ export function ProviderSwitcher({ currentProviderId }: { currentProviderId?: st
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="min-w-56">
-        <Label htmlFor={id}>Your caretaker profiles</Label>
+        <Label htmlFor={id}>{t.label}</Label>
         <Select
           id={id}
           value={providerId}
@@ -60,7 +63,7 @@ export function ProviderSwitcher({ currentProviderId }: { currentProviderId?: st
       </div>
       {!currentProviderId && (
         <Button onClick={() => void switchTo(providerId)} disabled={pending || !providerId}>
-          Open provider dashboard
+          {t.open}
         </Button>
       )}
       {error && (

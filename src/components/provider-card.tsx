@@ -2,13 +2,17 @@ import { Clock, Languages, MapPin, Star } from "lucide-react";
 import Link from "next/link";
 import { KindBadge, VerificationBadge, VerifiedTick } from "@/components/category-meta";
 import { ProviderAvatar } from "@/components/provider-avatar";
-import { categoryName } from "@/lib/categories";
 import { formatDistance, formatMoney, formatSlotLabel } from "@/lib/formatters";
+import { discoverMessages } from "@/lib/i18n/messages/discover";
+import { domainMessages } from "@/lib/i18n/messages/domain";
+import { getLocale } from "@/lib/i18n/server";
 import type { ProviderSearchResult } from "@/types";
 
 /** Answers at a glance: who, what, how far, how soon, how well rated, and from what price. */
-export function ProviderCard({ result, href }: { result: ProviderSearchResult; href: string }) {
+export async function ProviderCard({ result, href }: { result: ProviderSearchResult; href: string }) {
   const { provider, distanceKm, earliestSlot, startingPriceMinor, services } = result;
+  const locale = await getLocale();
+  const t = discoverMessages[locale].card;
 
   return (
     <article
@@ -29,7 +33,7 @@ export function ProviderCard({ result, href }: { result: ProviderSearchResult; h
           {provider.verificationStatus !== "verified" && <VerificationBadge status={provider.verificationStatus} />}
         </div>
         <p className="mt-0.5 text-sm font-medium text-ink-muted">
-          {categoryName(provider.category)} · {provider.yearsExperience} yrs experience
+          {domainMessages[locale].categories[provider.category].name} · {t.experience(provider.yearsExperience)}
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           <KindBadge category={provider.category} />
@@ -37,14 +41,14 @@ export function ProviderCard({ result, href }: { result: ProviderSearchResult; h
 
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
           <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Distance</dt>
+            <dt className="sr-only">{t.distance}</dt>
             <MapPin aria-hidden className="size-4 text-ink-muted" />
             <dd>
-              {distanceKm === null ? provider.baseLocation.locality : `${formatDistance(distanceKm)} away`}
+              {distanceKm === null ? provider.baseLocation.locality : t.away(formatDistance(distanceKm))}
             </dd>
           </div>
           <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Rating</dt>
+            <dt className="sr-only">{t.rating}</dt>
             <Star aria-hidden className="size-4 fill-amber-400 text-amber-500" />
             <dd>
               <span className="font-semibold">{provider.rating.toFixed(1)}</span>{" "}
@@ -52,14 +56,14 @@ export function ProviderCard({ result, href }: { result: ProviderSearchResult; h
             </dd>
           </div>
           <div className="col-span-2 flex items-center gap-1.5">
-            <dt className="sr-only">Earliest availability</dt>
+            <dt className="sr-only">{t.earliest}</dt>
             <Clock aria-hidden className="size-4 text-ink-muted" />
             <dd className={earliestSlot ? "font-medium text-emerald-800" : "text-ink-muted"}>
-              {earliestSlot ? `Next: ${formatSlotLabel(earliestSlot.startAt)}` : "No open slots this week"}
+              {earliestSlot ? t.next(formatSlotLabel(earliestSlot.startAt, new Date(), locale)) : t.noSlots}
             </dd>
           </div>
           <div className="col-span-2 flex items-center gap-1.5 sm:col-span-4">
-            <dt className="sr-only">Languages</dt>
+            <dt className="sr-only">{t.languages}</dt>
             <Languages aria-hidden className="size-4 text-ink-muted" />
             <dd className="text-ink-muted">{provider.languages.join(", ")}</dd>
           </div>
@@ -71,14 +75,14 @@ export function ProviderCard({ result, href }: { result: ProviderSearchResult; h
 
       <div className="col-span-2 flex items-end justify-between gap-2 border-t border-line pt-3 sm:w-36 sm:flex-col sm:items-end sm:border-0 sm:pt-0">
         <div className="sm:text-right">
-          <p className="text-xs text-ink-muted">Visits from</p>
+          <p className="text-xs text-ink-muted">{t.visitsFrom}</p>
           <p className="text-xl font-extrabold text-ink" data-testid="starting-price">
             {formatMoney(startingPriceMinor)}
           </p>
-          <p className="text-xs text-ink-muted">+ travel & fees</p>
+          <p className="text-xs text-ink-muted">{t.travelAndFees}</p>
         </div>
         <span className="text-sm font-semibold text-brand-700 group-hover:underline" aria-hidden>
-          View profile →
+          {t.viewProfile}
         </span>
       </div>
     </article>
